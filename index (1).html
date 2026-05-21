@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HsepidGram</title>
+  <!--
+  =================================================================
+   HsepidGram  —  Setup Guide
+  =================================================================
+   1. Go to https://console.firebase.google.com and create a project
+   2. Enable Authentication → Sign-in method → Google
+   3. Enable Firestore Database  (start in test mode for dev)
+   4. Add a Web App, copy the firebaseConfig object → paste below
+   5. Replace SUPER_ADMIN_UID with YOUR Google UID
+      ( Firebase Console → Authentication → Users → copy the UID )
+   6. Deploy this single index.html to GitHub Pages / any static host
+
+   Recommended Firestore Security Rules
+   (paste in Firebase Console → Firestore → Rules):
+   ─────────────────────────────────────────────────
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{db}/documents {
+       match /{doc=**} {
+         allow read, write: if request.auth != null;
+       }
+     }
+   }
+  =================================================================
+  -->
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:'#fff0f6', 100:'#ffe0ed', 200:'#ffc2d9',
+              300:'#ff94bd', 400:'#ff5c99', 500:'#ff2d77',
+              600:'#f0065a', 700:'#cc0049', 800:'#a80040', 900:'#8c003b'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Firebase v10 via ES Module CDN -->
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut,
+      onAuthStateChanged, browserLocalPersistence, setPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, getDocs, getDoc,
+      doc, deleteDoc, query, orderBy, onSnapshot,
+      serverTimestamp, updateDoc, arrayUnion, arrayRemove,
+      where, writeBatch, limit
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    /* =====================================================
+       FIREBASE CONFIG  ← Replace ALL placeholder values
+    ===================================================== */
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
+
+    /* =====================================================
+       SUPER ADMIN UID  ← Paste your own Google UID here
+       Find it: Firebase Console → Authentication → Users
+    ===================================================== */
+    const SUPER_ADMIN_UID = "YOUR_GOOGLE_UID_HERE";
+
+    /* ── Firebase initialisation ───────────────────────── */
+    const fbApp = initializeApp(firebaseConfig);
+    const auth  = getAuth(fbApp);
+    const db    = getFirestore(fbApp);
+
+    // Keep session alive across page refreshes (like real Instagram)
+    await setPersistence(auth, browserLocalPersistence);
+
+    /* =====================================================
+       GLOBAL APP STATE
+    ===================================================== */
+    let currentUser     = null;
+    let isAdmin         = false;
+    let activeTab       = 'feed';
+    let unsubFeed       = null;
+    let unsubReels      = null;
+    let unsubGroup      = null;
+    let activeGroupId   = null;
+
+    /* =====================================================
+       UTILITIES
+    ===================================================== */
+    const $  = id  => document.getElementById(id);
+
+    function toast(msg, type = 'info') {
+      const bg = { info:'bg-zinc-700', error:'bg-red-600', success:'bg-emerald-600' }[type];
+      const el = document.createElement('div');
+      el.className = `fixed top-5 left-1/2 -translate-x-1/2 z-[9999] px-5 py-3 rounded-2xl
+                      text-white text-sm font-semibold shadow-2xl ${bg} pointer-events-none`;
+      el.style.cssText = 'opacity:0;transition:opacity .25s';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2500);
+      });
+    }
+
+    function ago(ts) {
+      if (!ts) return '';
+      const s = Math.floor((Date.now() - (ts.toDate ? ts.toDate() : new Date(ts))) / 1000);
+      if (s < 60) return s + 's';
+      if (s < 3600) return Math.floor(s / 60) + 'm';
+      if (s < 86400) return Math.floor(s / 3600) + 'h';
+      return Math.floor(s / 86400) + 'd';
+    }
+
+    function av(u) {
+      return u?.photoURL ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(u?.displayName||'U')}&background=f0065a&color=fff&bold=true&size=128`;
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    function icons() { lucide.createIcons(); }
+
+    const spinner = () => `<div class="flex justify-center py-16">
+      <div class="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>`;
+
+    const emptyState = (e, t, s) => `<div class="flex flex-col items-center gap-3 py-20 px-8 text-center fade-in-up">
+      <span class="text-5xl">${e}</span>
+      <p class="text-white font-semibold text-lg">${t}</p>
+      <p class="text-gray-400 text-sm leading-relaxed">${s}</p>
+    </div>`;
+
+    const errState = m => `<div class="flex flex-col items-center gap-3 py-16 px-8 text-center">
+      <span class="text-4xl">⚠️</span>
+      <p class="text-red-400 text-sm">${esc(m)}</p>
+      <p class="text-gray-600 text-xs mt-1">Check Firebase config and Firestore security rules.</p>
+    </div>`;
+
+    /* =====================================================
+       AUTHENTICATION
+    ===================================================== */
+    window.signInWithGoogle = async () => {
+      try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+      catch (e) { if (e.code !== 'auth/popup-closed-by-user') toast('Sign-in error: ' + e.message, 'error'); }
+    };
+
+    window.doSignOut = async () => {
+      if (!confirm('Sign out of HsepidGram?')) return;
+      [unsubFeed, unsubReels, unsubGroup].forEach(u => u?.());
+      await signOut(auth);
+    };
+
+    onAuthStateChanged(auth, user => {
+      currentUser = user;
+      isAdmin     = user?.uid === SUPER_ADMIN_UID;
+      if (user) {
+        $('authScreen').classList.add('hidden');
+        $('appShell').classList.remove('hidden');
+        $('navAvatar').src = av(user);
+        isAdmin ? $('adminBadge').classList.remove('hidden')
+                : $('adminBadge').classList.add('hidden');
+        switchTab('feed');
+      } else {
+        $('authScreen').classList.remove('hidden');
+        $('appShell').classList.add('hidden');
+      }
+    });
+
+    /* =====================================================
+       TAB ROUTER
+    ===================================================== */
+    window.switchTab = tab => {
+      activeTab = tab;
+      ['feed','reels','create','groups','profile'].forEach(t => {
+        $('tab-' + t)?.classList.toggle('hidden', t !== tab);
+        const b = $('nav-' + t);
+        if (b) {
+          b.classList.toggle('text-brand-500', t === tab);
+          b.classList.toggle('text-gray-500',  t !== tab);
+        }
+      });
+      if (tab === 'feed')    loadFeed();
+      if (tab === 'reels')   loadReels();
+      if (tab === 'groups')  loadGroups();
+      if (tab === 'profile') loadProfile();
+    };
+
+    /* =====================================================
+       FEED
+    ===================================================== */
+    function loadFeed() {
+      unsubFeed?.();
+      const wrap = $('feedContainer');
+      wrap.innerHTML = spinner();
+      const q = query(collection(db, 'posts'), orderBy('createdAt','desc'), limit(50));
+      unsubFeed = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = emptyState('📸','No posts yet','Be the first to share something!'); return; }
+        wrap.innerHTML = snap.docs.map(d => postCard(d.id, d.data())).join('');
+        icons();
+      }, e => { wrap.innerHTML = errState(e.message); });
+    }
+
+    function postCard(id, p) {
+      const liked  = p.likes?.includes(currentUser.uid);
+      const count  = p.likes?.length || 0;
+      const del    = isAdmin ? `<button onclick="adminDel('posts','${id}')"
+        class="ml-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-400 transition-colors">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete</button>` : '';
+      return `<article class="bg-zinc-900 rounded-2xl overflow-hidden mb-4 border border-zinc-800 shadow-lg fade-in-up">
+        <div class="flex items-center px-4 py-3 gap-3">
+          <img src="${esc(p.authorPhotoURL||av({displayName:p.authorName}))}"
+               class="w-9 h-9 rounded-full object-cover ring-2 ring-brand-500/60 flex-shrink-0"
+               onerror="this.src='https://ui-avatars.com/api/?name=U&background=f0065a&color=fff'" />
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm text-white truncate">${esc(p.authorName)}</p>
+            <p class="text-xs text-gray-500">${ago(p.createdAt)}</p>
+          </div>${del}
+        </div>
+        ${p.imageUrl ? `<div class="w-full bg-zinc-800 overflow-hidden" style="max-height:520px">
+          <img src="${esc(p.imageUrl)}" class="w-full object-cover" style="max-height:520px"
+               onerror="this.parentElement.innerHTML='<div class=\"h-32 flex items-center justify-center text-gray-600 text-sm\">Image unavailable</div>'" />
+        </div>` : ''}
+        <div class="px-4 py-3">
+          <div class="flex items-center gap-4 mb-2">
+            <button onclick="toggleLike('posts','${id}')"
+                    class="flex items-center gap-1.5 text-sm transition-colors ${liked?'text-brand-500':'text-gray-400 hover:text-brand-400'}">
+              <i data-lucide="heart" class="w-5 h-5 ${liked?'fill-brand stroke-brand-500':''}"></i>
+              <span class="font-medium">${count}</span>
+            </button>
+          </div>
+          ${p.caption ? `<p class="text-sm text-gray-200 leading-relaxed">
+            <span class="font-semibold text-white mr-1.5">${esc(p.authorName)}</span>${esc(p.caption)}</p>` : ''}
+        </div>
+      </article>`;
+    }
+
+    /* =====================================================
+       REELS
+    ===================================================== */
+    function loadReels() {
+      unsubReels?.();
+      const wrap = $('reelsContainer');
+      wrap.innerHTML = `<div class="flex items-center justify-center h-full">${spinner()}</div>`;
+      const q = query(collection(db, 'reels'), orderBy('createdAt','desc'), limit(30));
+      unsubReels = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = emptyState('🎬','No Reels Yet','Post a video reel to get started!'); return; }
+        wrap.innerHTML = snap.docs.map((d, i) => reelSlide(d.id, d.data(), i)).join('');
+        icons();
+        initReelObserver();
+      }, e => { wrap.innerHTML = errState(e.message); });
+    }
+
+    function reelSlide(id, r, i) {
+      const liked  = r.likes?.includes(currentUser.uid);
+      const count  = r.likes?.length || 0;
+      const del    = isAdmin ? `<button onclick="adminDel('reels','${id}')"
+        class="absolute top-14 right-3 z-20 w-10 h-10 rounded-full bg-red-600/80 backdrop-blur-sm
+               flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+        <i data-lucide="trash-2" class="w-4 h-4 text-white"></i></button>` : '';
+      return `<div class="reel-slide relative w-full flex-shrink-0 bg-black overflow-hidden" style="height:100dvh" data-id="${id}">
+        <video src="${esc(r.videoUrl)}" class="absolute inset-0 w-full h-full object-cover" loop playsinline preload="none" muted></video>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none z-10"></div>
+        ${del}
+        <div class="absolute inset-0 z-10" onclick="reelTap(this)"></div>
+        <div class="reel-ind absolute inset-0 flex items-center justify-center z-20 pointer-events-none opacity-0 transition-opacity duration-200">
+          <div class="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <i data-lucide="play" class="w-7 h-7 text-white ml-1"></i>
+          </div>
+        </div>
+        <div class="absolute right-3 bottom-32 z-20 flex flex-col items-center gap-5">
+          <button onclick="toggleLike('reels','${id}')" class="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+            <div class="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <i data-lucide="heart" class="w-6 h-6 ${liked?'fill-brand stroke-brand-500 text-brand-500':'text-white'}"></i>
+            </div>
+            <span class="text-white text-xs font-semibold drop-shadow-lg">${count}</span>
+          </button>
+          <button onclick="reelCaption(this)" class="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+            <div class="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <i data-lucide="message-circle" class="w-6 h-6 text-white"></i>
+            </div>
+            <span class="text-white text-xs font-semibold drop-shadow-lg">Info</span>
+          </button>
+        </div>
+        <div class="absolute bottom-6 left-4 right-16 z-20">
+          <div class="flex items-center gap-2 mb-2">
+            <img src="${esc(r.authorPhotoURL||av({displayName:r.authorName}))}"
+                 class="w-8 h-8 rounded-full ring-2 ring-white/60 object-cover flex-shrink-0"
+                 onerror="this.src='https://ui-avatars.com/api/?name=U&background=f0065a&color=fff'" />
+            <span class="text-white font-semibold text-sm drop-shadow-lg">${esc(r.authorName)}</span>
+          </div>
+          ${r.caption ? `<p class="reel-cap hidden text-white/90 text-sm leading-relaxed bg-black/30 backdrop-blur-sm rounded-xl px-3 py-2">${esc(r.caption)}</p>` : ''}
+        </div>
+      </div>`;
+    }
+
+    window.reelTap = el => {
+      const s = el.closest('.reel-slide'), v = s?.querySelector('video'), ind = s?.querySelector('.reel-ind');
+      if (!v) return;
+      if (v.paused) { v.play().catch(()=>{}); }
+      else { v.pause(); if(ind){ind.style.opacity='1'; setTimeout(()=>{ind.style.opacity='0';},900);} }
+    };
+
+    window.reelCaption = btn => btn.closest('.reel-slide')?.querySelector('.reel-cap')?.classList.toggle('hidden');
+
+    function initReelObserver() {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(({target, isIntersecting}) => {
+          const v = target.querySelector('video');
+          if (!v) return;
+          if (isIntersecting) v.play().catch(()=>{});
+          else { v.pause(); v.currentTime = 0; }
+        });
+      }, { threshold: 0.65 });
+      $('reelsContainer')?.querySelectorAll('.reel-slide').forEach(s => io.observe(s));
+    }
+
+    /* =====================================================
+       LIKES
+    ===================================================== */
+    window.toggleLike = async (col, id) => {
+      const ref = doc(db, col, id);
+      try {
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const uid = currentUser.uid, likes = snap.data().likes || [];
+        await updateDoc(ref, { likes: likes.includes(uid) ? arrayRemove(uid) : arrayUnion(uid) });
+      } catch (e) { toast(e.message, 'error'); }
+    };
+
+    /* =====================================================
+       CREATE CONTENT
+    ===================================================== */
+    window.openCreateModal = type => {
+      $('createType').value = type;
+      $('createModalTitle').textContent = type==='post' ? '📸 New Post' : '🎬 New Reel';
+      $('createUrlLabel').textContent   = type==='post' ? 'Image URL'  : 'Video URL';
+      $('createUrlInput').placeholder   = type==='post'
+        ? 'https://example.com/photo.jpg' : 'https://example.com/video.mp4';
+      $('createModal').classList.remove('hidden');
+      setTimeout(() => $('createUrlInput').focus(), 80);
+    };
+
+    window.closeCreateModal = () => {
+      $('createModal').classList.add('hidden');
+      $('createUrlInput').value = $('createCaptionInput').value = '';
+    };
+
+    window.publishContent = async () => {
+      const type = $('createType').value, url = $('createUrlInput').value.trim(),
+            cap  = $('createCaptionInput').value.trim();
+      if (!url) { toast('Please enter a URL', 'error'); return; }
+      const btn = $('publishBtn');
+      btn.disabled = true; btn.textContent = 'Publishing…';
+      try {
+        const base = {
+          authorId: currentUser.uid, authorName: currentUser.displayName||'Anonymous',
+          authorPhotoURL: currentUser.photoURL||'', caption: cap, likes: [], createdAt: serverTimestamp()
+        };
+        if (type === 'post') await addDoc(collection(db,'posts'), {...base, imageUrl: url});
+        else                  await addDoc(collection(db,'reels'), {...base, videoUrl: url});
+        toast('Published! 🎉', 'success'); closeCreateModal(); switchTab(type==='post'?'feed':'reels');
+      } catch(e) { toast(e.message,'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Publish'; }
+    };
+
+    /* =====================================================
+       ADMIN — DELETE
+    ===================================================== */
+    window.adminDel = async (col, id) => {
+      if (!isAdmin) return;
+      if (!confirm('Permanently delete this ' + col.slice(0,-1) + '?')) return;
+      try { await deleteDoc(doc(db, col, id)); toast('Deleted ✓','success'); }
+      catch(e) { toast(e.message,'error'); }
+    };
+
+    /* =====================================================
+       GROUPS
+    ===================================================== */
+    function loadGroups() {
+      const q = query(collection(db,'groups'), orderBy('createdAt','desc'));
+      onSnapshot(q, snap => {
+        const wrap = $('groupsList');
+        if (!wrap) return;
+        if (snap.empty) { wrap.innerHTML = emptyState('💬','No groups yet','Create one and invite friends!'); return; }
+        const grs = ['from-brand-500 to-orange-500','from-purple-500 to-blue-600',
+                     'from-emerald-500 to-teal-600','from-amber-500 to-rose-500','from-cyan-500 to-indigo-600'];
+        wrap.innerHTML = snap.docs.map(d => {
+          const g = d.data(), gr = grs[g.name.charCodeAt(0) % grs.length];
+          const del = isAdmin ? `<button onclick="disbandGroup(event,'${d.id}')"
+            class="flex-shrink-0 flex items-center gap-1 text-xs text-red-500 hover:text-red-400
+                   bg-red-500/10 px-2 py-1 rounded-lg transition-colors">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>Disband</button>` : '';
+          return `<div onclick="openGroup('${d.id}','${esc(g.name)}')"
+            class="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4
+                   flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-all shadow-sm">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br ${gr} flex items-center justify-center
+                        text-xl font-bold text-white flex-shrink-0 shadow-lg">${esc(g.name[0].toUpperCase())}</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-white truncate">${esc(g.name)}</p>
+              <p class="text-xs text-gray-400 truncate mt-0.5">${esc(g.description||'Tap to join the chat')}</p>
+            </div>${del}
+          </div>`;
+        }).join('');
+        icons();
+      });
+    }
+
+    window.openCreateGroupModal  = () => $('createGroupModal').classList.remove('hidden');
+    window.closeCreateGroupModal = () => {
+      $('createGroupModal').classList.add('hidden');
+      $('groupNameInput').value = $('groupDescInput').value = '';
+    };
+
+    window.createGroup = async () => {
+      const name = $('groupNameInput').value.trim(), desc = $('groupDescInput').value.trim();
+      if (!name) { toast('Group name is required','error'); return; }
+      try {
+        await addDoc(collection(db,'groups'), { name, description:desc, createdBy:currentUser.uid, createdAt:serverTimestamp() });
+        closeCreateGroupModal(); toast('Group created! 🎉','success');
+      } catch(e) { toast(e.message,'error'); }
+    };
+
+    window.disbandGroup = async (e, gid) => {
+      e.stopPropagation();
+      if (!isAdmin) return;
+      if (!confirm('Disband this group and permanently delete ALL messages?')) return;
+      try {
+        const batch = writeBatch(db);
+        const msgs  = await getDocs(collection(db,'groups',gid,'messages'));
+        msgs.forEach(m => batch.delete(m.ref));
+        batch.delete(doc(db,'groups',gid));
+        await batch.commit();
+        toast('Group disbanded ✓','success');
+        if (activeGroupId === gid) closeChat();
+      } catch(e) { toast(e.message,'error'); }
+    };
+
+    window.openGroup = (gid, gname) => {
+      unsubGroup?.();
+      activeGroupId = gid;
+      $('chatGroupName').textContent = gname;
+      const db2 = $('chatDisbandBtn');
+      if (db2) { db2.style.display = isAdmin?'flex':'none'; db2.onclick = ()=>disbandGroup(new Event('click'),gid); }
+      $('groupsView').classList.add('hidden');
+      $('chatView').classList.remove('hidden');
+      streamMsgs(gid);
+    };
+
+    window.closeChat = () => {
+      unsubGroup?.(); unsubGroup = null; activeGroupId = null;
+      $('chatView').classList.add('hidden');
+      $('groupsView').classList.remove('hidden');
+    };
+
+    function streamMsgs(gid) {
+      const q = query(collection(db,'groups',gid,'messages'), orderBy('createdAt','asc'), limit(200));
+      unsubGroup = onSnapshot(q, snap => {
+        const w = $('chatMessages');
+        w.innerHTML = snap.docs.map(d => msgBubble(d.id, d.data(), gid)).join('');
+        icons(); w.scrollTop = w.scrollHeight;
+      });
+    }
+
+    function msgBubble(id, m, gid) {
+      const mine = m.authorId === currentUser.uid;
+      const del  = isAdmin ? `<button onclick="delMsg('${gid}','${id}')"
+        class="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity
+               p-1 rounded-full hover:bg-red-500/20">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>` : '';
+      return `<div class="flex ${mine?'justify-end':'justify-start'} items-end gap-2 mb-3 group">
+        ${!mine ? `<img src="${esc(m.authorPhotoURL||av({displayName:m.authorName}))}"
+          class="w-7 h-7 rounded-full object-cover flex-shrink-0 mb-1"
+          onerror="this.src='https://ui-avatars.com/api/?name=U&background=f0065a&color=fff'" />` : ''}
+        <div class="max-w-[78%] flex flex-col ${mine?'items-end':'items-start'} gap-0.5">
+          ${!mine ? `<span class="text-xs text-gray-400 ml-1 mb-0.5">${esc(m.authorName)}</span>` : ''}
+          <div class="flex items-center gap-1 ${mine?'flex-row-reverse':''}">
+            <div class="px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+                        ${mine?'bg-brand-600 text-white rounded-br-sm':'bg-zinc-800 text-gray-100 rounded-bl-sm'}">
+              ${esc(m.text)}
+            </div>${del}
+          </div>
+          <span class="text-[10px] text-gray-600 ${mine?'mr-1 text-right':'ml-1'}">${ago(m.createdAt)}</span>
+        </div>
+      </div>`;
+    }
+
+    window.sendMessage = async () => {
+      if (!activeGroupId) return;
+      const inp = $('chatInput'), text = inp.value.trim();
+      if (!text) return; inp.value = '';
+      try {
+        await addDoc(collection(db,'groups',activeGroupId,'messages'), {
+          authorId: currentUser.uid, authorName: currentUser.displayName||'Anonymous',
+          authorPhotoURL: currentUser.photoURL||'', text, createdAt: serverTimestamp()
+        });
+      } catch(e) { toast(e.message,'error'); inp.value = text; }
+    };
+
+    window.delMsg = async (gid, mid) => {
+      if (!isAdmin) return;
+      try { await deleteDoc(doc(db,'groups',gid,'messages',mid)); }
+      catch(e) { toast(e.message,'error'); }
+    };
+
+    $('chatInput')?.addEventListener('keydown', e => {
+      if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    /* =====================================================
+       PROFILE
+    ===================================================== */
+    async function loadProfile() {
+      const wrap = $('profileContainer');
+      if (!wrap || !currentUser) return;
+      wrap.innerHTML = `<div class="flex flex-col items-center pt-8 pb-6 px-4 fade-in-up">
+        <div class="relative mb-4">
+          <img src="${av(currentUser)}"
+               class="w-24 h-24 rounded-full object-cover ring-4 ring-brand-500 shadow-xl shadow-brand-500/20" />
+          ${isAdmin ? '<span class="absolute -bottom-1 -right-1 bg-gradient-to-r from-brand-500 to-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">ADMIN</span>' : ''}
+        </div>
+        <h2 class="text-xl font-bold text-white">${esc(currentUser.displayName||'User')}</h2>
+        <p class="text-sm text-gray-400 mt-1">${esc(currentUser.email||'')}</p>
+        <p class="text-[10px] text-gray-600 mt-1 font-mono select-all">${esc(currentUser.uid)}</p>
+      </div>
+      <div class="flex border-t border-b border-zinc-800 divide-x divide-zinc-800 mb-0.5">
+        <div id="sPosts" class="flex-1 py-4 text-center"><div class="w-5 h-5 border border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div><p class="text-xs text-gray-400">Posts</p></div>
+        <div id="sReels" class="flex-1 py-4 text-center"><div class="w-5 h-5 border border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div><p class="text-xs text-gray-400">Reels</p></div>
+        <div id="sLikes" class="flex-1 py-4 text-center"><div class="w-5 h-5 border border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div><p class="text-xs text-gray-400">Likes</p></div>
+      </div>
+      <div id="myGrid" class="grid grid-cols-3 gap-0.5"></div>`;
+      try {
+        const uid = currentUser.uid;
+        const [ps, rs] = await Promise.all([
+          getDocs(query(collection(db,'posts'), where('authorId','==',uid), orderBy('createdAt','desc'))),
+          getDocs(query(collection(db,'reels'), where('authorId','==',uid)))
+        ]);
+        let lk = 0;
+        ps.forEach(d => lk += d.data().likes?.length||0);
+        rs.forEach(d => lk += d.data().likes?.length||0);
+        const stat = (id, n, l) => $(id).innerHTML = `<p class="text-lg font-bold text-white">${n}</p><p class="text-xs text-gray-400">${l}</p>`;
+        stat('sPosts', ps.size, 'Posts'); stat('sReels', rs.size, 'Reels'); stat('sLikes', lk, 'Likes');
+        const grid = $('myGrid');
+        if (ps.empty) { grid.innerHTML = '<p class="col-span-3 text-center text-gray-500 text-sm py-10">No posts yet</p>'; return; }
+        grid.innerHTML = ps.docs.map(d => {
+          const p = d.data(), del2 = isAdmin
+            ? `<button onclick="adminDel('posts','${d.id}')"
+                class="absolute top-1 right-1 z-10 w-6 h-6 rounded-full bg-red-600/80 backdrop-blur-sm flex items-center justify-center active:scale-90">
+                <i data-lucide="trash-2" class="w-3 h-3 text-white"></i></button>` : '';
+          return `<div class="relative aspect-square bg-zinc-800 overflow-hidden group">${del2}
+            <img src="${esc(p.imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                 onerror="this.parentElement.style.background='#27272a';this.remove()" /></div>`;
+        }).join('');
+        icons();
+      } catch(e) { toast('Profile load error','error'); }
+    }
+
+    /* =====================================================
+       ADMIN PANEL
+    ===================================================== */
+    window.openAdminPanel  = () => $('adminPanel').classList.remove('hidden');
+    window.closeAdminPanel = () => $('adminPanel').classList.add('hidden');
+
+    window.adminLoadUsers = async () => {
+      const w = $('adminUsersList'); w.innerHTML = spinner();
+      try {
+        const snap = await getDocs(query(collection(db,'posts'), orderBy('createdAt','desc')));
+        const map = {};
+        snap.forEach(d => { const p=d.data(); if(!map[p.authorId]) map[p.authorId]={name:p.authorName,photo:p.authorPhotoURL,posts:0}; map[p.authorId].posts++; });
+        const en = Object.entries(map);
+        if (!en.length) { w.innerHTML='<p class="text-gray-500 text-xs text-center py-5">No users in posts yet</p>'; return; }
+        w.innerHTML = en.map(([uid,u]) => `<div class="flex items-center gap-3 py-3 border-b border-zinc-800 last:border-0">
+          <img src="${esc(u.photo||av({displayName:u.name}))}" class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="text-white font-medium text-sm truncate">${esc(u.name)}</p>
+            <p class="text-xs text-gray-400">${u.posts} post${u.posts!==1?'s':''}</p>
+          </div>
+          <span class="text-[10px] text-gray-600 font-mono flex-shrink-0">${uid.slice(0,8)}…</span>
+        </div>`).join('');
+      } catch(e) { w.innerHTML=`<p class="text-red-400 text-xs text-center py-4">${e.message}</p>`; }
+    };
+
+    window.adminNukeCol = async col => {
+      if (!isAdmin) return;
+      if (!confirm('DELETE ALL ' + col.toUpperCase() + '? This is permanent and irreversible!')) return;
+      try {
+        const batch = writeBatch(db), snap = await getDocs(collection(db,col));
+        snap.forEach(d => batch.delete(d.ref)); await batch.commit();
+        toast('Deleted all ' + snap.size + ' ' + col + ' ✓','success');
+      } catch(e) { toast(e.message,'error'); }
+    };
+
+  </script>
+
+  <style>
+    *, *::before, *::after { -webkit-tap-highlight-color:transparent; box-sizing:border-box; }
+    html, body { height:100%; background:#09090b; overscroll-behavior:none; }
+    ::-webkit-scrollbar { display:none; }
+    scrollbar-width: none;
+
+    /* Reel snap scroll */
+    #reelsContainer {
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      height: 100%;
+    }
+    .reel-slide { scroll-snap-align:start; scroll-snap-stop:always; }
+    .reel-slide video { pointer-events:none; }
+
+    /* Entrance animations */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in-up { animation: fadeUp 0.38s cubic-bezier(0.22,1,0.36,1) both; }
+
+    @keyframes scaleUp {
+      from { opacity:0; transform:scale(0.93) translateY(10px); }
+      to   { opacity:1; transform:scale(1)    translateY(0); }
+    }
+    .scale-in { animation: scaleUp 0.28s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* Logo gradient */
+    .ig-logo {
+      background: linear-gradient(135deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Filled liked heart */
+    .fill-brand  { fill: #ff2d77; }
+
+    /* iOS safe area */
+    .pb-safe { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  </style>
+</head>
+
+<body class="bg-zinc-950 text-white overflow-hidden" style="height:100dvh">
+
+<!-- ══════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════ -->
+<div id="authScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center px-8 bg-zinc-950">
+  <!-- Ambient blobs -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="absolute -top-48 -right-48 w-[520px] h-[520px] rounded-full bg-brand-700/10 blur-3xl"></div>
+    <div class="absolute -bottom-48 -left-48 w-[520px] h-[520px] rounded-full bg-purple-700/10 blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 w-full max-w-sm">
+    <!-- Brand -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-[22px]
+                  bg-gradient-to-br from-brand-500 to-purple-600 shadow-2xl shadow-brand-500/30 mb-5">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+          <circle cx="12" cy="12" r="4"/>
+          <circle cx="17.5" cy="6.5" r="1" fill="white" stroke="none"/>
+        </svg>
+      </div>
+      <h1 class="ig-logo text-[42px] font-bold tracking-tight leading-none mb-2"
+          style="font-family:Georgia,serif">HsepidGram</h1>
+      <p class="text-gray-500 text-xs tracking-[0.22em] uppercase">Share Your World</p>
+    </div>
+
+    <!-- Feature pills -->
+    <div class="flex justify-center gap-2.5 mb-10">
+      <span class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-gray-400">
+        <span aria-hidden>📸</span> Posts
+      </span>
+      <span class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-gray-400">
+        <span aria-hidden>🎬</span> Reels
+      </span>
+      <span class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-gray-400">
+        <span aria-hidden>💬</span> Groups
+      </span>
+    </div>
+
+    <!-- Google Sign-In -->
+    <button onclick="signInWithGoogle()"
+            class="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50
+                   active:bg-gray-100 active:scale-[0.98] text-zinc-900 font-semibold
+                   py-4 px-6 rounded-2xl shadow-xl transition-all duration-150 text-[15px]">
+      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" class="flex-shrink-0">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Sign in with Google
+    </button>
+
+    <p class="text-center text-gray-600 text-xs mt-5 leading-relaxed">
+      By continuing you agree to our Terms of Service<br/>and Privacy Policy
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════ -->
+<div id="appShell" class="hidden fixed inset-0 flex flex-col" style="height:100dvh">
+
+  <!-- TOP BAR -->
+  <header class="flex items-center justify-between px-4 py-3 border-b border-zinc-800/60
+                 flex-shrink-0 bg-zinc-950/95 backdrop-blur-md z-30">
+    <h1 class="ig-logo text-2xl font-bold tracking-tight" style="font-family:Georgia,serif">HsepidGram</h1>
+    <div class="flex items-center gap-2">
+      <button id="adminBadge"
+              class="hidden items-center gap-1.5 bg-brand-600/15 border border-brand-500/30
+                     text-brand-400 text-xs font-bold px-3 py-1.5 rounded-full
+                     hover:bg-brand-600/25 active:scale-95 transition-all"
+              onclick="openAdminPanel()">
+        <i data-lucide="shield" class="w-3 h-3"></i>Admin
+      </button>
+      <button onclick="doSignOut()" title="Sign out"
+              class="w-9 h-9 rounded-full overflow-hidden ring-2 ring-brand-500/50
+                     hover:ring-brand-500 active:scale-90 transition-all">
+        <img id="navAvatar" src="" alt="me" class="w-full h-full object-cover" />
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- FEED -->
+    <div id="tab-feed" class="hidden absolute inset-0 overflow-y-auto">
+      <div id="feedContainer" class="max-w-lg mx-auto px-3 pt-4 pb-28"></div>
+    </div>
+
+    <!-- REELS -->
+    <div id="tab-reels" class="hidden absolute inset-0 bg-black">
+      <div id="reelsContainer" class="w-full" style="height:100%"></div>
+    </div>
+
+    <!-- CREATE -->
+    <div id="tab-create" class="hidden absolute inset-0 overflow-y-auto">
+      <div class="max-w-md mx-auto px-4 pt-6 pb-28 fade-in-up">
+        <h2 class="text-xl font-bold text-white mb-1">Create Content</h2>
+        <p class="text-gray-400 text-sm mb-6">Share a photo post or a video reel</p>
+        <div class="grid grid-cols-2 gap-4 mb-8">
+          <button onclick="openCreateModal('post')"
+                  class="group bg-zinc-900 border border-zinc-800 hover:border-brand-500/50 rounded-2xl
+                         p-6 flex flex-col items-center gap-3 transition-all active:scale-95
+                         hover:shadow-xl hover:shadow-brand-500/10">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-orange-500
+                        flex items-center justify-center shadow-lg shadow-brand-500/30
+                        group-hover:scale-110 transition-transform">
+              <i data-lucide="image" class="w-7 h-7 text-white"></i>
+            </div>
+            <div class="text-center">
+              <p class="font-semibold text-white">New Post</p>
+              <p class="text-xs text-gray-400 mt-0.5">Share an image</p>
+            </div>
+          </button>
+          <button onclick="openCreateModal('reel')"
+                  class="group bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 rounded-2xl
+                         p-6 flex flex-col items-center gap-3 transition-all active:scale-95
+                         hover:shadow-xl hover:shadow-purple-500/10">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600
+                        flex items-center justify-center shadow-lg shadow-purple-500/30
+                        group-hover:scale-110 transition-transform">
+              <i data-lucide="film" class="w-7 h-7 text-white"></i>
+            </div>
+            <div class="text-center">
+              <p class="font-semibold text-white">New Reel</p>
+              <p class="text-xs text-gray-400 mt-0.5">Share a video</p>
+            </div>
+          </button>
+        </div>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h3 class="font-semibold text-brand-400 mb-3 flex items-center gap-2 text-sm">
+            <i data-lucide="lightbulb" class="w-4 h-4"></i> Tips for great content
+          </h3>
+          <ul class="text-sm text-gray-400 space-y-2 leading-relaxed">
+            <li class="flex gap-2"><span class="text-brand-500 flex-shrink-0 font-bold">•</span>Use direct media URLs ending in .jpg, .png, .mp4, etc.</li>
+            <li class="flex gap-2"><span class="text-brand-500 flex-shrink-0 font-bold">•</span>Cloudinary, Imgur, and Bunny CDN work great</li>
+            <li class="flex gap-2"><span class="text-brand-500 flex-shrink-0 font-bold">•</span>Videos should be web-optimized (H.264, under 50 MB)</li>
+            <li class="flex gap-2"><span class="text-brand-500 flex-shrink-0 font-bold">•</span>The URL must be publicly accessible (no auth required)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- GROUPS -->
+    <div id="tab-groups" class="hidden absolute inset-0">
+      <div id="groupsView" class="absolute inset-0 overflow-y-auto">
+        <div class="max-w-md mx-auto px-4 pt-4 pb-28">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-xl font-bold text-white">Groups</h2>
+              <p class="text-xs text-gray-500 mt-0.5">Real-time chat rooms</p>
+            </div>
+            <button onclick="openCreateGroupModal()"
+                    class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 active:scale-95
+                           text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all
+                           shadow-lg shadow-brand-600/30">
+              <i data-lucide="plus" class="w-4 h-4"></i>New
+            </button>
+          </div>
+
+          <!-- Pinned community chat -->
+          <button onclick="openGroup('__global__','🌍 Community Chat')"
+                  class="w-full mb-4 bg-gradient-to-r from-brand-600/15 to-purple-600/15
+                         border border-brand-500/25 hover:border-brand-500/40 rounded-2xl p-4
+                         flex items-center gap-3 text-left active:scale-[0.98] transition-all">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600
+                        flex items-center justify-center text-2xl flex-shrink-0 shadow-lg">🌍</div>
+            <div class="flex-1">
+              <p class="font-semibold text-white">Community Chat</p>
+              <p class="text-xs text-gray-400 mt-0.5">Everyone on HsepidGram</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600 flex-shrink-0"></i>
+          </button>
+
+          <div id="groupsList" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- Chat view -->
+      <div id="chatView" class="hidden absolute inset-0 flex flex-col bg-zinc-950">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800
+                    bg-zinc-900/90 backdrop-blur-md flex-shrink-0 z-10">
+          <button onclick="closeChat()"
+                  class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center
+                         text-gray-300 hover:bg-zinc-700 active:scale-90 transition-all flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          </button>
+          <p id="chatGroupName" class="font-semibold text-white flex-1 truncate text-sm"></p>
+          <button id="chatDisbandBtn" style="display:none"
+                  class="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400
+                         bg-red-500/10 px-3 py-1.5 rounded-xl transition-colors flex-shrink-0">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Disband
+          </button>
+        </div>
+        <div id="chatMessages" class="flex-1 overflow-y-auto px-4 py-4"></div>
+        <div class="flex items-center gap-3 px-4 py-3 border-t border-zinc-800
+                    bg-zinc-900/90 backdrop-blur-md flex-shrink-0 pb-safe">
+          <input id="chatInput" type="text" placeholder="Message…" maxlength="500" autocomplete="off"
+                 class="flex-1 bg-zinc-800 border border-zinc-700 focus:border-brand-500
+                        text-white placeholder-gray-500 rounded-full px-4 py-2.5
+                        text-sm outline-none transition-colors" />
+          <button onclick="sendMessage()"
+                  class="w-10 h-10 bg-brand-600 hover:bg-brand-700 active:scale-90 rounded-full
+                         flex items-center justify-center flex-shrink-0 transition-all
+                         shadow-lg shadow-brand-600/30">
+            <i data-lucide="send" class="w-4 h-4 text-white"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="tab-profile" class="hidden absolute inset-0 overflow-y-auto">
+      <div id="profileContainer" class="max-w-md mx-auto"></div>
+      <div class="max-w-md mx-auto px-4 pb-28 mt-2">
+        <button onclick="doSignOut()"
+                class="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800
+                       hover:border-red-500/40 text-gray-400 hover:text-red-400 font-medium py-3.5
+                       rounded-2xl transition-all active:scale-[0.98]">
+          <i data-lucide="log-out" class="w-4 h-4"></i>Sign Out
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="flex-shrink-0 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/50 px-1 z-30 pb-safe">
+    <div class="flex items-center justify-around max-w-md mx-auto">
+      <button id="nav-feed" onclick="switchTab('feed')"
+              class="flex flex-col items-center py-3 px-4 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="home" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Home</span>
+      </button>
+      <button id="nav-reels" onclick="switchTab('reels')"
+              class="flex flex-col items-center py-3 px-4 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="play-circle" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Reels</span>
+      </button>
+      <button id="nav-create" onclick="switchTab('create')"
+              class="flex flex-col items-center py-2 px-3 text-gray-500 transition-colors">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600
+                    flex items-center justify-center shadow-xl shadow-brand-500/30
+                    -mt-3 active:scale-90 transition-transform">
+          <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+        </div>
+      </button>
+      <button id="nav-groups" onclick="switchTab('groups')"
+              class="flex flex-col items-center py-3 px-4 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="users" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Groups</span>
+      </button>
+      <button id="nav-profile" onclick="switchTab('profile')"
+              class="flex flex-col items-center py-3 px-4 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="user" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Profile</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL — Create Post / Reel
+══════════════════════════════════════════ -->
+<div id="createModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60 shadow-2xl scale-in overflow-hidden pb-safe">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden">
+      <div class="w-10 h-1 bg-zinc-600 rounded-full"></div>
+    </div>
+    <div class="flex items-center justify-between px-6 pt-3 pb-4 border-b border-zinc-800">
+      <h3 id="createModalTitle" class="text-lg font-bold text-white">New Post</h3>
+      <button onclick="closeCreateModal()"
+              class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-zinc-700 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="px-6 pt-5 pb-6 space-y-4">
+      <input type="hidden" id="createType" value="post" />
+      <div>
+        <label id="createUrlLabel" class="block text-sm font-medium text-gray-300 mb-2">Image URL</label>
+        <input id="createUrlInput" type="url" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Caption <span class="text-gray-500 font-normal">(optional)</span></label>
+        <textarea id="createCaptionInput" placeholder="Write something…" rows="3" maxlength="500"
+                  class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none resize-none transition-colors leading-relaxed"></textarea>
+      </div>
+      <button id="publishBtn" onclick="publishContent()"
+              class="w-full bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-500 hover:to-purple-500
+                     active:scale-[0.98] text-white font-semibold py-4 rounded-xl transition-all
+                     shadow-lg shadow-brand-500/20 text-[15px]">
+        Publish
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL — Create Group
+══════════════════════════════════════════ -->
+<div id="createGroupModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeCreateGroupModal()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60 shadow-2xl scale-in overflow-hidden pb-safe">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden">
+      <div class="w-10 h-1 bg-zinc-600 rounded-full"></div>
+    </div>
+    <div class="flex items-center justify-between px-6 pt-3 pb-4 border-b border-zinc-800">
+      <h3 class="text-lg font-bold text-white">Create Group</h3>
+      <button onclick="closeCreateGroupModal()"
+              class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-zinc-700 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="px-6 pt-5 pb-6 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Group Name</label>
+        <input id="groupNameInput" type="text" placeholder="e.g. Photography Club" maxlength="50" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Description <span class="text-gray-500 font-normal">(optional)</span></label>
+        <input id="groupDescInput" type="text" placeholder="What's this group about?" maxlength="100" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors" />
+      </div>
+      <button onclick="createGroup()"
+              class="w-full bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-500 hover:to-purple-500
+                     active:scale-[0.98] text-white font-semibold py-4 rounded-xl transition-all
+                     shadow-lg shadow-brand-500/20 text-[15px]">
+        Create Group
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     ADMIN PANEL OVERLAY
+══════════════════════════════════════════ -->
+<div id="adminPanel" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeAdminPanel()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-red-900/40 shadow-2xl scale-in max-h-[88dvh] flex flex-col pb-safe">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
+      <div class="w-10 h-1 bg-zinc-700 rounded-full"></div>
+    </div>
+    <div class="flex items-center justify-between px-6 pt-3 pb-4 border-b border-zinc-800 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-red-600/20 border border-red-600/30 flex items-center justify-center">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-red-400"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white">Host Admin Panel</h3>
+          <p class="text-xs text-red-400/80">Super Admin · Full database control</p>
+        </div>
+      </div>
+      <button onclick="closeAdminPanel()"
+              class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-zinc-700 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+      <!-- Quick nav -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="switchTab('feed');closeAdminPanel()"
+                class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="layout-list" class="w-5 h-5 text-brand-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Feed</p>
+          <p class="text-gray-500 text-xs">Browse + delete posts</p>
+        </button>
+        <button onclick="switchTab('reels');closeAdminPanel()"
+                class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="film" class="w-5 h-5 text-purple-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Reels</p>
+          <p class="text-gray-500 text-xs">Browse + delete reels</p>
+        </button>
+        <button onclick="switchTab('groups');closeAdminPanel()"
+                class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="users" class="w-5 h-5 text-emerald-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Groups</p>
+          <p class="text-gray-500 text-xs">Disband any group</p>
+        </button>
+        <button onclick="switchTab('profile');closeAdminPanel()"
+                class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="user" class="w-5 h-5 text-yellow-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Profile</p>
+          <p class="text-gray-500 text-xs">Your admin stats</p>
+        </button>
+      </div>
+      <!-- Users -->
+      <div class="bg-zinc-800/50 border border-zinc-700/50 rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-white font-semibold text-sm flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-gray-400"></i>Users (from posts)
+          </h4>
+          <button onclick="adminLoadUsers()"
+                  class="text-brand-400 hover:text-brand-300 text-xs flex items-center gap-1 transition-colors active:scale-90">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i>Load
+          </button>
+        </div>
+        <div id="adminUsersList">
+          <p class="text-gray-500 text-xs text-center py-5">Tap Load to list users</p>
+        </div>
+      </div>
+      <!-- Danger zone -->
+      <div class="bg-red-950/25 border border-red-800/30 rounded-2xl p-4">
+        <h4 class="text-red-400 font-semibold text-sm flex items-center gap-2 mb-3">
+          <i data-lucide="alert-triangle" class="w-4 h-4"></i>Danger Zone
+        </h4>
+        <div class="space-y-2.5">
+          <button onclick="adminNukeCol('posts')"
+                  class="w-full flex items-center gap-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40
+                         text-red-300 hover:text-white py-3 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-4 h-4 flex-shrink-0"></i>
+            Delete ALL Posts from Firestore
+          </button>
+          <button onclick="adminNukeCol('reels')"
+                  class="w-full flex items-center gap-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40
+                         text-red-300 hover:text-white py-3 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-4 h-4 flex-shrink-0"></i>
+            Delete ALL Reels from Firestore
+          </button>
+        </div>
+        <p class="text-red-700 text-xs mt-3 text-center">⚠️ These actions are permanent and cannot be undone</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.addEventListener('DOMContentLoaded', () => lucide.createIcons());</script>
+</body>
+</html>
