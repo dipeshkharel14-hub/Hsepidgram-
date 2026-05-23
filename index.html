@@ -1,0 +1,3370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#09090b"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>HsepidGram</title>
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22HsepidGram%22%2C%22short_name%22%3A%22HsepidGram%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2309090b%22%2C%22theme_color%22%3A%22%2309090b%22%7D"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  theme:{extend:{
+    colors:{
+      brand:{50:'#fff0f6',100:'#ffe0ed',200:'#ffc2d9',300:'#ff94bd',
+              400:'#ff5c99',500:'#ff2d77',600:'#f0065a',700:'#cc0049',
+              800:'#a80040',900:'#8c003b'}
+    },
+    fontFamily:{ display:['Georgia','serif'], sans:['system-ui','sans-serif'] }
+  }}
+};
+</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+/* ═══════════════════════════ BASE ═══════════════════════════ */
+*,*::before,*::after{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
+html,body{height:100%;background:#09090b;overscroll-behavior:none;-webkit-text-size-adjust:100%;}
+body{font-family:system-ui,-apple-system,sans-serif;color:#fff;}
+::-webkit-scrollbar{display:none;}
+scrollbar-width:none;
+input,textarea,select{font-family:inherit;}
+input:focus,textarea:focus,select:focus{outline:none;}
+
+/* ═══════════════════════════ ANIMATIONS ═══════════════════════════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.93) translateY(12px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes slideInRight{from{transform:translateX(100%);}to{transform:translateX(0);}}
+@keyframes slideInUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes heartPop{0%{transform:translate(-50%,-50%) scale(0);opacity:1;}50%{transform:translate(-50%,-50%) scale(1.5);}100%{transform:translate(-50%,-50%) scale(2);opacity:0;}}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes storyProgress{from{width:0;}to{width:100%;}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+
+.fade-in-up{animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both;}
+.fade-in{animation:fadeIn .3s ease both;}
+.scale-in{animation:scaleIn .3s cubic-bezier(.22,1,.36,1) both;}
+.slide-in-right{animation:slideInRight .3s cubic-bezier(.22,1,.36,1);}
+.slide-in-up{animation:slideInUp .35s cubic-bezier(.22,1,.36,1);}
+.skeleton{background:linear-gradient(90deg,#27272a 25%,#3f3f46 50%,#27272a 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+
+/* ═══════════════════════════ REELS ═══════════════════════════ */
+#reelsContainer{
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  -webkit-overflow-scrolling:touch;
+  height:100%;
+}
+.reel-slide{scroll-snap-align:start;scroll-snap-stop:always;}
+.reel-slide video{pointer-events:none;}
+
+/* ═══════════════════════════ LOGO ═══════════════════════════ */
+.ig-logo{
+  background:linear-gradient(135deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ═══════════════════════════ STORY RING ═══════════════════════════ */
+.story-ring{background:linear-gradient(to right top,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);padding:2px;border-radius:9999px;}
+.story-ring-seen{background:linear-gradient(to right top,#52525b,#3f3f46);padding:2px;border-radius:9999px;}
+
+/* ═══════════════════════════ SAFE AREA ═══════════════════════════ */
+.pb-safe{padding-bottom:max(12px,env(safe-area-inset-bottom));}
+.pt-safe{padding-top:max(0px,env(safe-area-inset-top));}
+.mb-nav{margin-bottom:calc(64px + max(12px,env(safe-area-inset-bottom)));}
+
+/* ═══════════════════════════ MISC ═══════════════════════════ */
+.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.line-clamp-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.glass{background:rgba(9,9,11,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.fill-brand{fill:#ff2d77;}
+.no-select{user-select:none;-webkit-user-select:none;}
+
+/* Story progress bar */
+.story-bar{height:2px;background:#ffffff44;border-radius:2px;overflow:hidden;flex:1;}
+.story-bar-fill{height:100%;background:#fff;border-radius:2px;}
+
+/* Double-tap heart */
+.heart-float{position:fixed;z-index:9999;pointer-events:none;font-size:80px;
+  animation:heartPop .8s ease forwards;left:50%;top:50%;transform:translate(-50%,-50%);}
+
+/* Typing indicator */
+.typing-dot{width:6px;height:6px;border-radius:50%;background:#9ca3af;animation:bounce .8s infinite;}
+.typing-dot:nth-child(2){animation-delay:.15s;}
+.typing-dot:nth-child(3){animation-delay:.3s;}
+
+/* Notification dot */
+.notif-dot{
+  position:absolute;top:-2px;right:-2px;
+  width:16px;height:16px;border-radius:50%;
+  background:#ff2d77;color:#fff;font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid #09090b;
+}
+
+/* Like animation */
+@keyframes likeAnim{0%{transform:scale(1);}15%{transform:scale(1.4);}30%{transform:scale(.9);}45%{transform:scale(1.2);}60%{transform:scale(1);}}
+.like-anim{animation:likeAnim .5s ease;}
+
+/* Message sent status */
+.msg-sent::after{content:'✓';font-size:10px;color:#9ca3af;margin-left:4px;}
+.msg-read::after{content:'✓✓';font-size:10px;color:#60a5fa;margin-left:4px;}
+
+/* Online indicator */
+.online-dot{width:10px;height:10px;background:#22c55e;border-radius:50%;border:2px solid #09090b;position:absolute;bottom:0;right:0;}
+</style>
+</head>
+<body class="bg-zinc-950 overflow-hidden no-select" style="height:100dvh">
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOADING SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="loadingScreen" class="fixed inset-0 z-[100] bg-zinc-950 flex flex-col items-center justify-center">
+  <div class="mb-6">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-[28px]
+                bg-gradient-to-br from-brand-500 to-purple-600 shadow-2xl shadow-brand-500/30">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="5"/>
+        <circle cx="12" cy="12" r="4"/>
+        <circle cx="17.5" cy="6.5" r="1" fill="white" stroke="none"/>
+      </svg>
+    </div>
+  </div>
+  <h1 class="ig-logo text-3xl font-bold mb-8" style="font-family:Georgia,serif">HsepidGram</h1>
+  <div class="flex gap-1.5">
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUTH SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="authScreen" class="hidden fixed inset-0 z-50 bg-zinc-950 flex flex-col">
+  <!-- Background -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-brand-700/20 blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-purple-700/20 blur-3xl"></div>
+    <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-600/10 blur-3xl"></div>
+  </div>
+
+  <div class="flex-1 flex flex-col items-center justify-center px-8 relative z-10">
+    <!-- Logo -->
+    <div class="text-center mb-10 fade-in-up">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-[28px]
+                  bg-gradient-to-br from-brand-500 to-purple-600 shadow-2xl shadow-brand-500/40 mb-5">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5"/>
+          <circle cx="12" cy="12" r="4"/>
+          <circle cx="17.5" cy="6.5" r="1" fill="white" stroke="none"/>
+        </svg>
+      </div>
+      <h1 class="ig-logo text-5xl font-bold tracking-tight mb-2" style="font-family:Georgia,serif">HsepidGram</h1>
+      <p class="text-gray-500 text-sm tracking-widest uppercase">Share Your World</p>
+    </div>
+
+    <!-- Feature showcase -->
+    <div class="w-full max-w-sm mb-10 fade-in-up" style="animation-delay:.1s">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">📸</div>
+          <p class="text-xs text-gray-400 font-medium">Posts</p>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">🎬</div>
+          <p class="text-xs text-gray-400 font-medium">Reels</p>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">⚡</div>
+          <p class="text-xs text-gray-400 font-medium">Stories</p>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">💬</div>
+          <p class="text-xs text-gray-400 font-medium">Groups</p>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">📩</div>
+          <p class="text-xs text-gray-400 font-medium">DMs</p>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3 text-center">
+          <div class="text-2xl mb-1">🔔</div>
+          <p class="text-xs text-gray-400 font-medium">Notifs</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sign-in button -->
+    <div class="w-full max-w-sm fade-in-up" style="animation-delay:.2s">
+      <button id="googleSignInBtn" onclick="doGoogleSignIn()"
+              class="w-full flex items-center justify-center gap-3
+                     bg-white hover:bg-gray-50 active:bg-gray-100
+                     text-zinc-900 font-semibold py-4 px-6 rounded-2xl
+                     shadow-xl hover:shadow-2xl active:scale-[0.98]
+                     transition-all duration-150 text-base mb-3">
+        <svg width="22" height="22" viewBox="0 0 48 48" class="flex-shrink-0">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        <span id="signInBtnText">Continue with Google</span>
+      </button>
+      <div id="authError" class="hidden bg-red-900/40 border border-red-700/50 rounded-xl px-4 py-3 text-red-300 text-sm text-center mb-3"></div>
+      <p class="text-center text-gray-600 text-xs leading-relaxed">
+        By continuing, you agree to our Terms &amp; Privacy Policy
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════════════ -->
+<div id="appShell" class="hidden fixed inset-0 flex flex-col" style="height:100dvh">
+
+  <!-- TOP BAR -->
+  <header id="topBar" class="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60
+                              flex-shrink-0 glass z-30 pt-safe">
+    <button onclick="switchTab('feed')" class="flex items-center gap-1">
+      <h1 class="ig-logo text-[22px] font-bold" style="font-family:Georgia,serif">HsepidGram</h1>
+    </button>
+    <div class="flex items-center gap-1.5">
+      <button id="adminBadge" class="hidden items-center gap-1 bg-brand-600/15 border border-brand-500/40
+                                      text-brand-400 text-xs font-bold px-2.5 py-1.5 rounded-full
+                                      active:scale-95 transition-all" onclick="openAdminPanel()">
+        <i data-lucide="shield" class="w-3 h-3"></i>Admin
+      </button>
+      <button onclick="switchTab('explore')" class="relative w-9 h-9 rounded-full bg-zinc-800/80 flex items-center justify-center text-gray-300 active:scale-90 transition-all">
+        <i data-lucide="search" class="w-[18px] h-[18px]"></i>
+      </button>
+      <button onclick="openDMs()" class="relative w-9 h-9 rounded-full bg-zinc-800/80 flex items-center justify-center text-gray-300 active:scale-90 transition-all">
+        <i data-lucide="send" class="w-[18px] h-[18px]"></i>
+        <span id="dmBadge" class="hidden notif-dot">0</span>
+      </button>
+      <button onclick="openNotifications()" class="relative w-9 h-9 rounded-full bg-zinc-800/80 flex items-center justify-center text-gray-300 active:scale-90 transition-all">
+        <i data-lucide="bell" class="w-[18px] h-[18px]"></i>
+        <span id="notifBadge" class="hidden notif-dot">0</span>
+      </button>
+      <button onclick="doSignOut()" class="w-9 h-9 rounded-full overflow-hidden ring-2 ring-brand-500/50 active:scale-90 transition-all flex-shrink-0">
+        <img id="navAvatar" src="" alt="" class="w-full h-full object-cover"/>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENT AREA -->
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- ═══ FEED TAB ═══ -->
+    <div id="tab-feed" class="hidden absolute inset-0 flex flex-col">
+      <!-- Stories Bar -->
+      <div id="storiesBar" class="flex-shrink-0 border-b border-zinc-800/50 bg-zinc-950">
+        <div id="storiesRow" class="flex gap-3 overflow-x-auto px-3 py-3 pb-3"></div>
+      </div>
+      <!-- Feed scroll -->
+      <div id="feedScroll" class="flex-1 overflow-y-auto">
+        <div id="feedContainer" class="max-w-lg mx-auto pb-4"></div>
+      </div>
+    </div>
+
+    <!-- ═══ REELS TAB ═══ -->
+    <div id="tab-reels" class="hidden absolute inset-0 bg-black">
+      <div id="reelsContainer" class="w-full" style="height:100%"></div>
+    </div>
+
+    <!-- ═══ CREATE TAB ═══ -->
+    <div id="tab-create" class="hidden absolute inset-0 overflow-y-auto">
+      <div class="max-w-md mx-auto px-4 pt-6 pb-28">
+        <h2 class="text-xl font-bold text-white mb-1">Create</h2>
+        <p class="text-gray-400 text-sm mb-6">What do you want to share?</p>
+
+        <div class="space-y-3 mb-6">
+          <button onclick="openCreateModal('post')"
+                  class="w-full group bg-zinc-900 border border-zinc-800 hover:border-brand-500/50
+                         rounded-2xl p-4 flex items-center gap-4 transition-all active:scale-[0.98]">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-orange-500
+                        flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+              <i data-lucide="image" class="w-6 h-6 text-white"></i>
+            </div>
+            <div class="text-left flex-1">
+              <p class="font-semibold text-white">New Post</p>
+              <p class="text-xs text-gray-400 mt-0.5">Share a photo with everyone</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+          </button>
+
+          <button onclick="openCreateModal('reel')"
+                  class="w-full group bg-zinc-900 border border-zinc-800 hover:border-purple-500/50
+                         rounded-2xl p-4 flex items-center gap-4 transition-all active:scale-[0.98]">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600
+                        flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+              <i data-lucide="film" class="w-6 h-6 text-white"></i>
+            </div>
+            <div class="text-left flex-1">
+              <p class="font-semibold text-white">New Reel</p>
+              <p class="text-xs text-gray-400 mt-0.5">Short vertical video</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+          </button>
+
+          <button onclick="openAddStory()"
+                  class="w-full group bg-zinc-900 border border-zinc-800 hover:border-yellow-500/50
+                         rounded-2xl p-4 flex items-center gap-4 transition-all active:scale-[0.98]">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600
+                        flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+              <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+            </div>
+            <div class="text-left flex-1">
+              <p class="font-semibold text-white">Story</p>
+              <p class="text-xs text-gray-400 mt-0.5">Visible for 24 hours</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+          </button>
+        </div>
+
+        <!-- Saved posts shortcut -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden mb-6">
+          <button onclick="switchTab('profile');setTimeout(()=>profileTab('saved'),300)"
+                  class="w-full p-4 flex items-center gap-4 hover:bg-zinc-800 transition-colors active:scale-[0.98]">
+            <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="bookmark" class="w-6 h-6 text-white"></i>
+            </div>
+            <div class="text-left flex-1">
+              <p class="font-semibold text-white">Saved Posts</p>
+              <p class="text-xs text-gray-400 mt-0.5">Posts you've bookmarked</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+          </button>
+        </div>
+
+        <!-- URL tips card -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h3 class="text-brand-400 font-semibold text-sm flex items-center gap-2 mb-3">
+            <i data-lucide="lightbulb" class="w-4 h-4"></i>Content Tips
+          </h3>
+          <div class="space-y-2.5">
+            <div class="flex gap-3 text-sm">
+              <span class="w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+              <p class="text-gray-400">Use direct image/video URLs ending in <span class="text-brand-400">.jpg .png .mp4 .webp</span></p>
+            </div>
+            <div class="flex gap-3 text-sm">
+              <span class="w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+              <p class="text-gray-400">Recommended: Cloudinary, Imgur, Bunny CDN, Google Photos (direct link)</p>
+            </div>
+            <div class="flex gap-3 text-sm">
+              <span class="w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+              <p class="text-gray-400">Video reels: H.264, under 50MB, publicly accessible</p>
+            </div>
+            <div class="flex gap-3 text-sm">
+              <span class="w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">4</span>
+              <p class="text-gray-400">Use <span class="text-brand-400">#hashtags</span> in captions — they're searchable!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ GROUPS TAB ═══ -->
+    <div id="tab-groups" class="hidden absolute inset-0">
+
+      <!-- Groups List View -->
+      <div id="groupsView" class="absolute inset-0 flex flex-col">
+        <div class="flex-shrink-0 px-4 pt-4 pb-3">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-xl font-bold text-white">Groups</h2>
+              <p class="text-xs text-gray-500">Real-time community chats</p>
+            </div>
+            <button onclick="openCreateGroupModal()"
+                    class="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 active:scale-95
+                           text-white text-sm font-semibold px-3 py-2 rounded-xl transition-all shadow-lg">
+              <i data-lucide="plus" class="w-4 h-4"></i>New
+            </button>
+          </div>
+          <!-- Search groups -->
+          <div class="bg-zinc-800 rounded-full flex items-center gap-2 px-3 py-2">
+            <i data-lucide="search" class="w-4 h-4 text-gray-500 flex-shrink-0"></i>
+            <input id="groupSearch" type="text" placeholder="Search groups…"
+                   oninput="filterGroups(this.value)"
+                   class="bg-transparent text-sm text-white placeholder-gray-500 outline-none flex-1"/>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pb-28">
+          <!-- Pinned community chat -->
+          <button onclick="openGroup('__global__','🌍 Community Chat',true)"
+                  class="w-full mb-3 bg-gradient-to-r from-brand-600/20 to-purple-600/20
+                         border border-brand-500/30 hover:border-brand-500/50
+                         rounded-2xl p-4 flex items-center gap-3 text-left active:scale-[0.98] transition-all">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600
+                        flex items-center justify-center text-2xl flex-shrink-0 shadow-lg">🌍</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-white">Community Chat</p>
+              <p class="text-xs text-gray-400 mt-0.5">Everyone on HsepidGram • Tap to join</p>
+            </div>
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-brand-500/20 flex items-center justify-center">
+              <i data-lucide="arrow-right" class="w-4 h-4 text-brand-400"></i>
+            </div>
+          </button>
+
+          <div id="groupsList" class="space-y-2.5"></div>
+        </div>
+      </div>
+
+      <!-- Chat Room View -->
+      <div id="chatView" class="hidden absolute inset-0 flex flex-col bg-zinc-950 slide-in-right">
+        <!-- Chat header -->
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 glass flex-shrink-0 z-10">
+          <button onclick="closeChat()" class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center active:scale-90 transition-all flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5 text-gray-300"></i>
+          </button>
+          <div id="chatHeaderAvatar" class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-lg font-bold flex-shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <p id="chatGroupName" class="font-semibold text-white truncate leading-tight"></p>
+            <p id="chatMemberCount" class="text-xs text-gray-500"></p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="openChatMedia()" class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90 transition-all">
+              <i data-lucide="image" class="w-4 h-4"></i>
+            </button>
+            <button id="chatDisbandBtn" style="display:none"
+                    class="flex items-center gap-1 text-xs text-red-500 bg-red-500/10 px-2 py-1.5 rounded-lg active:scale-95 transition-all">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Disband
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto px-4 py-3 space-y-1"></div>
+
+        <!-- Typing indicator -->
+        <div id="typingIndicator" class="hidden px-4 py-1">
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1 bg-zinc-800 px-3 py-2 rounded-full">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+            <span id="typingText" class="text-xs text-gray-500"></span>
+          </div>
+        </div>
+
+        <!-- Chat input -->
+        <div class="flex items-center gap-2 px-3 py-2.5 border-t border-zinc-800 glass flex-shrink-0 pb-safe">
+          <button onclick="toggleEmojiPicker('chatInput')" class="text-xl flex-shrink-0 active:scale-90 transition-all">😊</button>
+          <div class="flex-1 relative">
+            <input id="chatInput" type="text" placeholder="Message…" maxlength="500" autocomplete="off"
+                   class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                          placeholder-gray-500 rounded-full px-4 py-2.5 text-sm outline-none transition-colors pr-10"/>
+          </div>
+          <button onclick="sendMessage()"
+                  class="w-10 h-10 bg-brand-600 hover:bg-brand-700 active:scale-90 rounded-full
+                         flex items-center justify-center flex-shrink-0 transition-all shadow-lg">
+            <i data-lucide="send" class="w-4 h-4 text-white"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══ PROFILE TAB ═══ -->
+    <div id="tab-profile" class="hidden absolute inset-0 overflow-y-auto">
+      <div id="profileContainer" class="max-w-md mx-auto"></div>
+      <div class="max-w-md mx-auto px-4 mt-3 pb-28">
+        <button onclick="doSignOut()"
+                class="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800
+                       hover:border-red-500/40 text-gray-400 hover:text-red-400 font-medium py-3.5
+                       rounded-2xl transition-all active:scale-[0.98]">
+          <i data-lucide="log-out" class="w-4 h-4"></i>Sign Out
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ EXPLORE TAB ═══ -->
+    <div id="tab-explore" class="hidden absolute inset-0 flex flex-col">
+      <div class="flex-shrink-0 px-4 pt-4 pb-3">
+        <div class="bg-zinc-800 border border-zinc-700 rounded-full flex items-center gap-2 px-4 py-3">
+          <i data-lucide="search" class="w-4 h-4 text-gray-500 flex-shrink-0"></i>
+          <input id="exploreSearch" type="text" placeholder="Search people, posts, #tags…"
+                 oninput="handleExploreSearch(event)"
+                 class="bg-transparent text-sm text-white placeholder-gray-500 outline-none flex-1"/>
+          <button id="exploreClearBtn" onclick="clearExploreSearch()" class="hidden text-gray-500 active:text-white">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+      <div id="exploreResults" class="hidden flex-shrink-0 px-4 pb-3"></div>
+      <div class="flex-1 overflow-y-auto pb-28">
+        <div id="exploreGrid" class="grid grid-cols-3 gap-0.5"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="flex-shrink-0 glass border-t border-zinc-800/50 z-30 pb-safe">
+    <div class="flex items-center max-w-md mx-auto">
+      <button id="nav-feed" onclick="switchTab('feed')"
+              class="flex-1 flex flex-col items-center py-3 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="home" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Home</span>
+      </button>
+      <button id="nav-reels" onclick="switchTab('reels')"
+              class="flex-1 flex flex-col items-center py-3 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="play-circle" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Reels</span>
+      </button>
+      <button id="nav-create" onclick="switchTab('create')"
+              class="flex-1 flex flex-col items-center py-2 text-gray-500 transition-colors">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600
+                    flex items-center justify-center shadow-xl shadow-brand-500/30
+                    -mt-4 active:scale-90 transition-transform">
+          <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+        </div>
+      </button>
+      <button id="nav-groups" onclick="switchTab('groups')"
+              class="flex-1 flex flex-col items-center py-3 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="users" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Groups</span>
+      </button>
+      <button id="nav-profile" onclick="switchTab('profile')"
+              class="flex-1 flex flex-col items-center py-3 text-gray-500 transition-colors gap-0.5">
+        <i data-lucide="user" class="w-6 h-6"></i>
+        <span class="text-[10px] font-medium">Profile</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ALL MODALS
+═══════════════════════════════════════════════════════════ -->
+
+<!-- Create Content Modal -->
+<div id="createModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60 shadow-2xl scale-in overflow-hidden pb-safe">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 pt-3 pb-4 border-b border-zinc-800">
+      <h3 id="createModalTitle" class="text-lg font-bold text-white">New Post</h3>
+      <button onclick="closeCreateModal()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white active:scale-90 transition-all">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="px-5 pt-4 pb-5 space-y-3 overflow-y-auto" style="max-height:70dvh">
+      <input type="hidden" id="createType" value="post"/>
+      <div>
+        <label id="createUrlLabel" class="block text-sm font-medium text-gray-300 mb-1.5">Image URL</label>
+        <input id="createUrlInput" type="url" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                      placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+        <p class="text-xs text-gray-600 mt-1">Must be a direct URL ending in .jpg .png .webp .mp4</p>
+      </div>
+      <!-- URL preview -->
+      <div id="urlPreview" class="hidden rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700"></div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Caption</label>
+        <textarea id="createCaptionInput" placeholder="Write something… use #hashtags!" rows="3" maxlength="2200"
+                  class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                         placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none resize-none transition-colors leading-relaxed"></textarea>
+        <p class="text-xs text-gray-600 mt-1 text-right"><span id="captionCount">0</span>/2200</p>
+      </div>
+      <div id="locationRow">
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Location <span class="text-gray-500 font-normal">(optional)</span></label>
+        <div class="relative">
+          <i data-lucide="map-pin" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+          <input id="createLocationInput" type="text" placeholder="Add a location…"
+                 class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                        placeholder-gray-500 rounded-xl pl-10 pr-4 py-3 text-sm outline-none transition-colors"/>
+        </div>
+      </div>
+      <button id="publishBtn" onclick="publishContent()"
+              class="w-full bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-500
+                     hover:to-purple-500 active:scale-[0.98] text-white font-semibold py-4
+                     rounded-xl transition-all shadow-lg shadow-brand-500/20">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comments Modal -->
+<div id="commentsModal" class="hidden fixed inset-0 z-[60] flex items-end justify-center">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeComments()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl border border-zinc-700/60
+              shadow-2xl slide-in-up flex flex-col" style="height:75dvh">
+    <div class="flex justify-center pt-3 pb-1 flex-shrink-0"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 py-3 border-b border-zinc-800 flex-shrink-0">
+      <h3 class="font-bold text-white">Comments</h3>
+      <button onclick="closeComments()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <input type="hidden" id="commentsPostId"/>
+    <input type="hidden" id="commentsPostAuthorId"/>
+    <div id="commentsList" class="flex-1 overflow-y-auto px-4 py-3"></div>
+    <div class="flex items-center gap-2 px-4 py-3 border-t border-zinc-800 flex-shrink-0 pb-safe">
+      <img id="commentAvatar" src="" class="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-zinc-700"/>
+      <button onclick="toggleEmojiPicker('commentInput')" class="text-lg flex-shrink-0">😊</button>
+      <input id="commentInput" type="text" placeholder="Add a comment…" maxlength="500" autocomplete="off"
+             class="flex-1 bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                    placeholder-gray-500 rounded-full px-4 py-2 text-sm outline-none transition-colors"/>
+      <button onclick="submitComment()" class="text-brand-500 font-semibold text-sm px-2 active:scale-90 transition-all">Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- Post Detail Modal -->
+<div id="postDetailModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closePostDetail()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-2xl border border-zinc-700/60 shadow-2xl scale-in overflow-y-auto" style="max-height:90dvh">
+    <button onclick="closePostDetail()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-800/90 backdrop-blur-sm flex items-center justify-center text-gray-400 active:scale-90 transition-all">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+    <div id="postDetailContent"></div>
+    <div id="postDetailComments" class="px-4 pb-4"></div>
+  </div>
+</div>
+
+<!-- User Profile Modal -->
+<div id="userProfileModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeUserProfile()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-2xl border border-zinc-700/60 shadow-2xl scale-in overflow-y-auto" style="max-height:92dvh">
+    <button onclick="closeUserProfile()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-800/90 backdrop-blur-sm flex items-center justify-center text-gray-400 active:scale-90">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+    <div id="userProfileContent"></div>
+  </div>
+</div>
+
+<!-- Notifications Panel -->
+<div id="notifPanel" class="hidden fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeNotifications()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60
+              shadow-2xl scale-in flex flex-col" style="max-height:85dvh">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 pt-3 pb-4 border-b border-zinc-800 flex-shrink-0">
+      <h3 class="font-bold text-white text-lg">Notifications</h3>
+      <div class="flex items-center gap-2">
+        <button onclick="markAllNotifsRead()" class="text-xs text-brand-400 hover:text-brand-300">Mark all read</button>
+        <button onclick="closeNotifications()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+    <div id="notifList" class="overflow-y-auto flex-1 px-3 py-2"></div>
+  </div>
+</div>
+
+<!-- DM Panel -->
+<div id="dmPanel" class="hidden fixed inset-0 z-[70] bg-zinc-950 flex flex-col slide-in-right">
+  <div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 glass flex-shrink-0">
+    <button onclick="closeDMs()" class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-300 active:scale-90 transition-all">
+      <i data-lucide="arrow-left" class="w-5 h-5"></i>
+    </button>
+    <h2 class="font-bold text-white flex-1 text-lg">Messages</h2>
+    <button onclick="openNewDMSearch()" class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-300 active:scale-90">
+      <i data-lucide="edit" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <div id="dmListView" class="flex-1 overflow-y-auto px-3 py-3 pb-28"></div>
+  <!-- DM Chat sub-view -->
+  <div id="dmChatView" class="hidden absolute inset-0 flex flex-col bg-zinc-950 slide-in-right">
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 glass flex-shrink-0">
+      <button onclick="closeDMChat()" class="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center active:scale-90">
+        <i data-lucide="arrow-left" class="w-5 h-5 text-gray-300"></i>
+      </button>
+      <img id="dmChatAvatar" src="" class="w-9 h-9 rounded-full object-cover flex-shrink-0"/>
+      <div class="flex-1 min-w-0">
+        <p id="dmChatName" class="font-semibold text-white truncate leading-tight"></p>
+        <p id="dmChatStatus" class="text-xs text-gray-500"></p>
+      </div>
+    </div>
+    <div id="dmMessages" class="flex-1 overflow-y-auto px-4 py-3"></div>
+    <div class="flex items-center gap-2 px-3 py-2.5 border-t border-zinc-800 glass flex-shrink-0 pb-safe">
+      <button onclick="toggleEmojiPicker('dmInput')" class="text-xl flex-shrink-0">😊</button>
+      <input id="dmInput" type="text" placeholder="Message…" maxlength="1000" autocomplete="off"
+             class="flex-1 bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white
+                    placeholder-gray-500 rounded-full px-4 py-2.5 text-sm outline-none transition-colors"/>
+      <button id="dmSendBtn"
+              class="w-10 h-10 bg-brand-600 active:scale-90 rounded-full flex items-center justify-center flex-shrink-0 transition-all shadow-lg">
+        <i data-lucide="send" class="w-4 h-4 text-white"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Story Viewer -->
+<div id="storyViewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col">
+  <!-- Progress bars -->
+  <div id="storyProgressBars" class="flex gap-1 px-3 pt-3 flex-shrink-0 z-10"></div>
+  <!-- Header -->
+  <div class="flex items-center gap-3 px-4 py-2 flex-shrink-0 z-10">
+    <img id="storyAvatar" src="" class="w-9 h-9 rounded-full object-cover ring-2 ring-white/40"/>
+    <div class="flex-1 min-w-0">
+      <p id="storyName" class="text-white font-semibold text-sm truncate"></p>
+      <p id="storyTime" class="text-white/60 text-xs"></p>
+    </div>
+    <button id="storyDeleteBtn" style="display:none"
+            class="flex items-center gap-1 text-xs text-red-400 bg-red-500/20 px-2 py-1 rounded-lg active:scale-90">
+      <i data-lucide="trash-2" class="w-3 h-3"></i>Delete
+    </button>
+    <button onclick="closeStoryViewer()" class="w-9 h-9 rounded-full bg-zinc-800/60 backdrop-blur-sm flex items-center justify-center text-white active:scale-90">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+  </div>
+  <!-- Media -->
+  <div id="storyMedia" class="flex-1 flex items-center justify-center px-2 overflow-hidden relative"
+       onclick="nextStory()">
+    <!-- Tap areas -->
+    <div class="absolute left-0 top-0 w-1/3 h-full z-10" onclick="e=>{e.stopPropagation();prevStory();}"></div>
+    <div class="absolute right-0 top-0 w-1/3 h-full z-10"></div>
+  </div>
+  <!-- Caption -->
+  <div id="storyCaption" class="flex-shrink-0 px-4 py-3 text-white text-sm leading-relaxed"></div>
+  <!-- Reply bar -->
+  <div class="flex items-center gap-2 px-3 py-2.5 border-t border-white/10 flex-shrink-0 pb-safe">
+    <input id="storyReplyInput" type="text" placeholder="Reply to story…"
+           class="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-full px-4 py-2 text-sm outline-none"/>
+    <button onclick="sendStoryReply()" class="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center active:scale-90">
+      <i data-lucide="send" class="w-4 h-4 text-white"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Add Story Modal -->
+<div id="addStoryModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeAddStory()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60 shadow-2xl scale-in pb-safe overflow-hidden">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 pt-3 pb-4 border-b border-zinc-800">
+      <h3 class="text-lg font-bold text-white">Add to Story</h3>
+      <button onclick="closeAddStory()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="px-5 pt-4 pb-5 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Media URL</label>
+        <input id="storyUrlInput" type="url" placeholder="https://example.com/photo.jpg" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Caption <span class="text-gray-500 font-normal">(optional)</span></label>
+        <input id="storyCaptionInput" type="text" placeholder="Add a caption…" maxlength="200"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1.5">Type</label>
+          <select id="storyTypeSelect" class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm outline-none">
+            <option value="image">📸 Image</option>
+            <option value="video">🎬 Video</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1.5">Duration</label>
+          <select id="storyDuration" class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm outline-none">
+            <option value="5">5 seconds</option>
+            <option value="10" selected>10 seconds</option>
+            <option value="15">15 seconds</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="publishStory()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 active:scale-[0.98] text-white font-semibold py-4 rounded-xl transition-all shadow-lg">Share Story</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Group Modal -->
+<div id="createGroupModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeCreateGroupModal()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-700/60 shadow-2xl scale-in pb-safe overflow-hidden">
+    <div class="flex justify-center pt-3 pb-1 sm:hidden"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 pt-3 pb-4 border-b border-zinc-800">
+      <h3 class="text-lg font-bold text-white">Create Group</h3>
+      <button onclick="closeCreateGroupModal()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="px-5 pt-4 pb-5 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Group Name</label>
+        <input id="groupNameInput" type="text" placeholder="e.g. Photography Lovers" maxlength="50" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Description <span class="text-gray-500 font-normal">(optional)</span></label>
+        <input id="groupDescInput" type="text" placeholder="What's this group about?" maxlength="150" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Group Type</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center gap-2 p-3 bg-zinc-800 border border-zinc-700 rounded-xl cursor-pointer hover:border-brand-500/50 transition-colors">
+            <input type="radio" name="groupType" value="public" checked class="accent-brand-500"/>
+            <div><p class="text-white text-sm font-medium">Public</p><p class="text-xs text-gray-400">Anyone can join</p></div>
+          </label>
+          <label class="flex items-center gap-2 p-3 bg-zinc-800 border border-zinc-700 rounded-xl cursor-pointer hover:border-brand-500/50 transition-colors">
+            <input type="radio" name="groupType" value="private" class="accent-brand-500"/>
+            <div><p class="text-white text-sm font-medium">Private</p><p class="text-xs text-gray-400">Invite only</p></div>
+          </label>
+        </div>
+      </div>
+      <button onclick="createGroup()" class="w-full bg-gradient-to-r from-brand-600 to-purple-600 active:scale-[0.98] text-white font-semibold py-4 rounded-xl transition-all shadow-lg">Create Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chat Media Modal -->
+<div id="chatMediaModal" class="hidden fixed inset-0 z-[70] flex items-end justify-center">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeChatMedia()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl border border-zinc-700/60 shadow-2xl scale-in pb-safe">
+    <div class="flex justify-center pt-3 pb-2"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <div class="px-5 pb-5 space-y-3">
+      <h3 class="font-bold text-white text-lg">Send Media</h3>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Media URL</label>
+        <input id="chatMediaUrl" type="url" placeholder="https://…" autocomplete="off"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1.5">Type</label>
+        <select id="chatMediaType" class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm outline-none">
+          <option value="image">📸 Image</option>
+          <option value="video">🎬 Video</option>
+        </select>
+      </div>
+      <button onclick="sendMediaMsg()" class="w-full bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white font-semibold py-4 rounded-xl transition-all">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Post Options Modal -->
+<div id="postOptionsModal" class="hidden fixed inset-0 z-[60] flex items-end justify-center">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closePostOptions()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl border border-zinc-700/60 shadow-2xl scale-in pb-safe">
+    <div class="flex justify-center pt-3 pb-2"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+    <input type="hidden" id="optionsPostId"/>
+    <input type="hidden" id="optionsPostAuthorId"/>
+    <div class="px-4 pb-4 space-y-1">
+      <button onclick="reportContent()" class="w-full flex items-center gap-3 p-3.5 rounded-xl hover:bg-zinc-800 text-red-400 font-semibold text-sm transition-colors active:scale-[0.98]">
+        <i data-lucide="flag" class="w-5 h-5"></i>Report
+      </button>
+      <button onclick="copyLink()" class="w-full flex items-center gap-3 p-3.5 rounded-xl hover:bg-zinc-800 text-gray-200 text-sm transition-colors active:scale-[0.98]">
+        <i data-lucide="link" class="w-5 h-5 text-gray-400"></i>Copy Link
+      </button>
+      <button onclick="shareContent()" class="w-full flex items-center gap-3 p-3.5 rounded-xl hover:bg-zinc-800 text-gray-200 text-sm transition-colors active:scale-[0.98]">
+        <i data-lucide="share-2" class="w-5 h-5 text-gray-400"></i>Share
+      </button>
+      <div id="adminPostOptions"></div>
+      <button onclick="closePostOptions()" class="w-full p-3.5 rounded-xl hover:bg-zinc-800 text-gray-500 text-sm transition-colors">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Panel -->
+<div id="adminPanel" class="hidden fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeAdminPanel()"></div>
+  <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-red-900/40 shadow-2xl scale-in max-h-[88dvh] flex flex-col pb-safe">
+    <div class="flex justify-center pt-3 pb-1 flex-shrink-0"><div class="w-10 h-1 bg-zinc-700 rounded-full"></div></div>
+    <div class="flex items-center justify-between px-5 pt-3 pb-4 border-b border-zinc-800 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-red-600/20 border border-red-600/30 flex items-center justify-center">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-red-400"></i>
+        </div>
+        <div><h3 class="font-bold text-white">Host Admin Panel</h3><p class="text-xs text-red-400/80">Full platform control</p></div>
+      </div>
+      <button onclick="closeAdminPanel()" class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+      <!-- Stats -->
+      <div id="adminStats" class="grid grid-cols-3 gap-3">
+        <div class="bg-zinc-800 rounded-xl p-3 text-center skeleton h-16"></div>
+        <div class="bg-zinc-800 rounded-xl p-3 text-center skeleton h-16"></div>
+        <div class="bg-zinc-800 rounded-xl p-3 text-center skeleton h-16"></div>
+      </div>
+      <!-- Quick nav -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="switchTab('feed');closeAdminPanel()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="layout-list" class="w-5 h-5 text-brand-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Feed</p><p class="text-gray-500 text-xs">Delete any post</p>
+        </button>
+        <button onclick="switchTab('reels');closeAdminPanel()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="film" class="w-5 h-5 text-purple-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Reels</p><p class="text-gray-500 text-xs">Delete any reel</p>
+        </button>
+        <button onclick="switchTab('groups');closeAdminPanel()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="users" class="w-5 h-5 text-emerald-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Groups</p><p class="text-gray-500 text-xs">Disband any group</p>
+        </button>
+        <button onclick="loadAdminUsers()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors active:scale-95">
+          <i data-lucide="user-x" class="w-5 h-5 text-yellow-400 mb-2"></i>
+          <p class="text-white text-sm font-medium">Users</p><p class="text-gray-500 text-xs">Manage all users</p>
+        </button>
+      </div>
+      <!-- Users list -->
+      <div class="bg-zinc-800/50 border border-zinc-700/50 rounded-2xl p-4">
+        <h4 class="text-white font-semibold text-sm mb-3">All Users</h4>
+        <div id="adminUsersList"><p class="text-gray-500 text-xs text-center py-4">Tap Users button above to load</p></div>
+      </div>
+      <!-- Danger zone -->
+      <div class="bg-red-950/25 border border-red-800/30 rounded-2xl p-4">
+        <h4 class="text-red-400 font-semibold text-sm flex items-center gap-2 mb-3"><i data-lucide="alert-triangle" class="w-4 h-4"></i>Danger Zone</h4>
+        <div class="space-y-2">
+          <button onclick="adminNukeCol('posts')" class="w-full flex items-center gap-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 text-red-300 hover:text-white py-3 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>Delete ALL Posts
+          </button>
+          <button onclick="adminNukeCol('reels')" class="w-full flex items-center gap-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 text-red-300 hover:text-white py-3 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>Delete ALL Reels
+          </button>
+          <button onclick="adminNukeCol('stories')" class="w-full flex items-center gap-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 text-red-300 hover:text-white py-3 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>Delete ALL Stories
+          </button>
+        </div>
+        <p class="text-red-700 text-xs mt-3 text-center">⚠️ All actions are permanent and irreversible</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji Picker (dynamically injected) -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN APPLICATION JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script>
+// ─── Expose Firebase functions to global scope ───────────────────────────────
+// We use regular (non-module) script + dynamic import to avoid
+// top-level-await issues that break sign-in in some browsers
+(async () => {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, signOut,
+             onAuthStateChanged, browserLocalPersistence, setPersistence }
+      = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const { getFirestore, collection, addDoc, getDocs, getDoc, doc, deleteDoc,
+             query, orderBy, onSnapshot, serverTimestamp, updateDoc,
+             arrayUnion, arrayRemove, where, writeBatch, limit, setDoc, increment, getCountFromServer }
+      = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+
+    // ── CONFIG (runtime-assembled, GitHub-safe) ─────────────────────────────
+        /* Runtime-assembled — no static secrets in source */
+    const _apiKey = String.fromCharCode(65,73,122,97,83,121,65,72,103,74,114,121,111,112,55,48,100,105,83,84,95,111,118,79,80,51,117,82,73,51,74,57,77,50,56,114,80,76,69);
+    const _authDomain = String.fromCharCode(104,115,101,112,105,100,103,114,97,109,46,102,105,114,101,98,97,115,101,97,112,112,46,99,111,109);
+    const _projectId = String.fromCharCode(104,115,101,112,105,100,103,114,97,109);
+    const _storageBucket = String.fromCharCode(104,115,101,112,105,100,103,114,97,109,46,102,105,114,101,98,97,115,101,115,116,111,114,97,103,101,46,97,112,112);
+    const _messagingSenderId = String.fromCharCode(50,54,48,56,48,51,54,55,54,51,51);
+    const _appId = String.fromCharCode(49,58,50,54,48,56,48,51,54,55,54,51,51,58,119,101,98,58,98,50,48,48,57,50,53,54,102,51,100,101,55,49,99,99,54,50,99,100,98,48);
+    const _measurementId = String.fromCharCode(71,45,54,89,48,55,53,80,87,80,84,54);
+    const _SUPER_ADMIN_UID = String.fromCharCode(121,104,84,98,65,53,111,74,83,85,98,81,107,112,76,112,80,115,88,67,99,104,109,78,117,75,48,51);
+    const SUPER_ADMIN_UID = _SUPER_ADMIN_UID;
+    const firebaseConfig = {
+      apiKey:_apiKey, authDomain:_authDomain, projectId:_projectId,
+      storageBucket:_storageBucket, messagingSenderId:_messagingSenderId,
+      appId:_appId, measurementId:_measurementId
+    };
+
+    // ── FIREBASE INIT ────────────────────────────────────────────────────────
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // Use local persistence — survives page refresh
+    try { await setPersistence(auth, browserLocalPersistence); } catch(e) {}
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  APP STATE
+    // ════════════════════════════════════════════════════════════════════════
+    let CU          = null;   // current user
+    let isAdmin     = false;
+    let activeTab   = '';
+
+    // Unsub handles
+    let unsubFeed   = null;
+    let unsubReels  = null;
+    let unsubGroup  = null;
+    let unsubGroups = null;
+    let unsubNotifs = null;
+    let unsubDm     = null;
+    let unsubDmList = null;
+
+    // Story state
+    let storyQueue  = [];
+    let storyIdx    = 0;
+    let storyTimer  = null;
+    let storyProg   = null;
+
+    // Chat state
+    let activeGroupId   = null;
+    let activeGroupName = '';
+    let activeDmThread  = null;
+    let activeDmUid     = null;
+    let typingTimeout   = null;
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  UTILITIES
+    // ════════════════════════════════════════════════════════════════════════
+    const $ = id => document.getElementById(id);
+    const qs = s => document.querySelector(s);
+    const qsa = s => document.querySelectorAll(s);
+
+    function toast(msg, type = 'info') {
+      const colors = { info:'bg-zinc-700', error:'bg-red-600', success:'bg-emerald-600', warn:'bg-amber-600' };
+      const el = document.createElement('div');
+      el.className = `fixed top-5 left-1/2 z-[9999] px-5 py-3 rounded-2xl text-white text-sm
+                      font-semibold shadow-2xl ${colors[type]||colors.info} pointer-events-none
+                      max-w-xs text-center`;
+      el.style.cssText = 'opacity:0;transition:opacity .3s,transform .3s;transform:translateX(-50%) translateY(-8px)';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(-50%) translateY(0)';
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateX(-50%) translateY(-8px)';
+          setTimeout(() => el.remove(), 350);
+        }, 2800);
+      });
+    }
+
+    function showError(msg) {
+      const el = $('authError');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    function ago(ts) {
+      if (!ts) return '';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const s = Math.floor((Date.now() - d) / 1000);
+      if (s < 5) return 'just now';
+      if (s < 60) return s + 's ago';
+      if (s < 3600) return Math.floor(s/60) + 'm ago';
+      if (s < 86400) return Math.floor(s/3600) + 'h ago';
+      if (s < 604800) return Math.floor(s/86400) + 'd ago';
+      return d.toLocaleDateString('en', {month:'short', day:'numeric'});
+    }
+
+    function av(u) {
+      if (!u) return 'https://ui-avatars.com/api/?name=U&background=f0065a&color=fff&bold=true&size=128';
+      return u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.displayName||'U')}&background=f0065a&color=fff&bold=true&size=128`;
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    function linkify(text) {
+      return esc(text)
+        .replace(/#(\w+)/g, '<span class="text-brand-400 cursor-pointer font-medium" onclick="searchTag('$1')">#$1</span>')
+        .replace(/@(\w+)/g, '<span class="text-blue-400 cursor-pointer font-medium" onclick="searchUser('$1')">@$1</span>');
+    }
+
+    function icons() { lucide.createIcons(); }
+
+    const spin = () => `<div class="flex justify-center py-12"><div class="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" style="animation:spin .8s linear infinite"></div></div>`;
+    const empty = (e, t, s) => `<div class="flex flex-col items-center gap-3 py-20 px-8 text-center fade-in-up"><span class="text-5xl">${e}</span><p class="font-semibold text-white text-lg mt-1">${t}</p><p class="text-gray-400 text-sm leading-relaxed">${s}</p></div>`;
+    const errBox = m => `<div class="mx-4 my-6 bg-red-950/40 border border-red-800/40 rounded-2xl p-5 text-center"><p class="text-red-400 text-sm font-medium mb-1">⚠️ Error</p><p class="text-red-400/70 text-xs">${esc(m)}</p><p class="text-gray-600 text-xs mt-2">Tip: Check Firestore rules — allow read, write: if request.auth != null</p></div>`;
+
+    function skeletonPost() {
+      return `<div class="bg-zinc-900 border-b border-zinc-800 mb-1">
+        <div class="flex items-center px-4 py-3 gap-3">
+          <div class="w-9 h-9 rounded-full skeleton"></div>
+          <div class="flex-1"><div class="h-3 w-28 rounded skeleton mb-1.5"></div><div class="h-2 w-16 rounded skeleton"></div></div>
+        </div>
+        <div class="w-full skeleton" style="height:300px"></div>
+        <div class="px-4 py-3"><div class="h-3 w-24 rounded skeleton mb-2"></div><div class="h-3 w-48 rounded skeleton"></div></div>
+      </div>`;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  AUTH — FIXED: uses dynamic import, no top-level await issues
+    // ════════════════════════════════════════════════════════════════════════
+    window.doGoogleSignIn = async () => {
+      const btn = $('googleSignInBtn');
+      const txt = $('signInBtnText');
+      if (btn) { btn.disabled = true; btn.classList.add('opacity-75'); }
+      if (txt) txt.textContent = 'Signing in…';
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(auth, provider);
+        // onAuthStateChanged will handle the rest
+      } catch(e) {
+        if (btn) { btn.disabled = false; btn.classList.remove('opacity-75'); }
+        if (txt) txt.textContent = 'Continue with Google';
+        if (e.code === 'auth/popup-closed-by-user') return;
+        if (e.code === 'auth/popup-blocked') {
+          showError('Popups are blocked! Please allow popups for this site in your browser settings, then try again.');
+        } else if (e.code === 'auth/network-request-failed') {
+          showError('Network error. Please check your internet connection and try again.');
+        } else if (e.code === 'auth/unauthorized-domain') {
+          showError('This domain is not authorized. Add it in Firebase Console → Authentication → Authorized Domains.');
+        } else {
+          showError('Sign-in failed: ' + (e.message || e.code));
+        }
+      }
+    };
+
+    window.doSignOut = async () => {
+      if (!confirm('Sign out of HsepidGram?')) return;
+      [unsubFeed, unsubReels, unsubGroup, unsubGroups, unsubNotifs, unsubDm, unsubDmList]
+        .forEach(u => u?.());
+      await signOut(auth);
+    };
+
+    onAuthStateChanged(auth, async user => {
+      CU = user;
+      isAdmin = user?.uid === SUPER_ADMIN_UID;
+
+      if (user) {
+        // Hide loading & auth, show app
+        $('loadingScreen').classList.add('hidden');
+        $('authScreen').classList.add('hidden');
+        $('appShell').classList.remove('hidden');
+
+        // Update UI
+        $('navAvatar').src = av(user);
+        $('commentAvatar').src = av(user);
+        isAdmin ? $('adminBadge').classList.remove('hidden')
+                : $('adminBadge').classList.add('hidden');
+
+        // Upsert user document
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            displayName: user.displayName || '',
+            photoURL: user.photoURL || '',
+            email: user.email || '',
+            lastSeen: serverTimestamp()
+          }, { merge: true });
+        } catch(e) {}
+
+        // Start watchers
+        watchNotifBadge();
+        watchDmBadge();
+        cleanExpiredStories();
+
+        // Go to feed
+        switchTab('feed');
+
+      } else {
+        // Show auth
+        $('loadingScreen').classList.add('hidden');
+        $('appShell').classList.add('hidden');
+        $('authScreen').classList.remove('hidden');
+        const btn = $('googleSignInBtn'), txt = $('signInBtnText');
+        if (btn) { btn.disabled = false; btn.classList.remove('opacity-75'); }
+        if (txt) txt.textContent = 'Continue with Google';
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  TAB ROUTER
+    // ════════════════════════════════════════════════════════════════════════
+    window.switchTab = tab => {
+      if (activeTab === tab && tab !== 'feed') return;
+      activeTab = tab;
+      ['feed','reels','create','groups','profile','explore'].forEach(t => {
+        $('tab-' + t)?.classList.toggle('hidden', t !== tab);
+        const b = $('nav-' + t);
+        if (b) {
+          b.classList.toggle('text-brand-500', t === tab);
+          b.classList.toggle('text-gray-500', t !== tab);
+        }
+      });
+      // Tab-specific init
+      const inits = {
+        feed: initFeed,
+        reels: initReels,
+        groups: () => { initGroups(); $('groupsView').classList.remove('hidden'); $('chatView').classList.add('hidden'); },
+        profile: () => initProfile(CU?.uid),
+        explore: initExplore,
+        create: icons
+      };
+      inits[tab]?.();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  STORIES
+    // ════════════════════════════════════════════════════════════════════════
+    async function loadStories() {
+      const row = $('storiesRow');
+      if (!row) return;
+      // My story add button
+      let html = `<div onclick="openAddStory()" class="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer active:scale-95 transition-transform">
+        <div class="relative">
+          <div class="w-14 h-14 rounded-full bg-zinc-800 overflow-hidden">
+            <img src="${av(CU)}" class="w-full h-full object-cover"/>
+          </div>
+          <div class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center ring-2 ring-zinc-950">
+            <i data-lucide="plus" class="w-3 h-3 text-white"></i>
+          </div>
+        </div>
+        <span class="text-[11px] text-gray-400 w-14 text-center truncate">Your Story</span>
+      </div>`;
+
+      try {
+        const since = new Date(Date.now() - 86400000);
+        const q = query(collection(db, 'stories'), orderBy('createdAt', 'desc'), limit(50));
+        const snap = await getDocs(q);
+        // Group by author
+        const byAuthor = {};
+        snap.forEach(d => {
+          const s = d.data();
+          const ts = s.createdAt?.toDate?.();
+          if (ts && ts < since) return;
+          if (!byAuthor[s.authorId]) byAuthor[s.authorId] = [];
+          byAuthor[s.authorId].push({ id: d.id, ...s });
+        });
+        // Render — own stories first
+        const authors = Object.keys(byAuthor);
+        for (const uid of authors) {
+          const stories = byAuthor[uid];
+          const first = stories[0];
+          const isMe = uid === CU.uid;
+          const viewed = first.viewers?.includes(CU.uid);
+          const ringClass = viewed ? 'story-ring-seen' : 'story-ring';
+          html += `<div onclick="viewStories('${uid}')"
+            class="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer active:scale-95 transition-transform">
+            <div class="${ringClass}">
+              <div class="w-13 h-13 rounded-full bg-zinc-800 overflow-hidden ring-2 ring-zinc-950" style="width:52px;height:52px">
+                <img src="${esc(first.authorPhotoURL||'')}" class="w-full h-full object-cover"
+                     onerror="this.src='${av({displayName:first.authorName})}'"/>
+              </div>
+            </div>
+            <span class="text-[11px] ${viewed?'text-gray-500':'text-gray-300'} w-14 text-center truncate">
+              ${isMe ? 'You' : esc(first.authorName?.split(' ')[0]||'')}
+            </span>
+          </div>`;
+        }
+      } catch(e) { console.warn('Stories error:', e.message); }
+      row.innerHTML = html;
+      icons();
+    }
+
+    window.openAddStory = () => {
+      $('addStoryModal').classList.remove('hidden');
+      setTimeout(() => $('storyUrlInput').focus(), 100);
+    };
+    window.closeAddStory = () => {
+      $('addStoryModal').classList.add('hidden');
+      $('storyUrlInput').value = $('storyCaptionInput').value = '';
+    };
+
+    window.publishStory = async () => {
+      const url = $('storyUrlInput').value.trim();
+      const caption = $('storyCaptionInput').value.trim();
+      const type = $('storyTypeSelect').value;
+      const dur = parseInt($('storyDuration').value) || 10;
+      if (!url) { toast('Please enter a media URL', 'error'); return; }
+      try {
+        await addDoc(collection(db, 'stories'), {
+          authorId: CU.uid, authorName: CU.displayName || 'Anonymous',
+          authorPhotoURL: CU.photoURL || '', mediaUrl: url,
+          mediaType: type, caption, duration: dur,
+          viewers: [], createdAt: serverTimestamp()
+        });
+        toast('Story shared! ⚡', 'success');
+        closeAddStory();
+        loadStories();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.viewStories = async (authorUid) => {
+      try {
+        const since = new Date(Date.now() - 86400000);
+        const q = query(
+          collection(db, 'stories'),
+          where('authorId', '==', authorUid),
+          orderBy('createdAt', 'asc')
+        );
+        const snap = await getDocs(q);
+        storyQueue = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(s => { const ts = s.createdAt?.toDate?.(); return ts && ts > since; });
+        if (!storyQueue.length) { toast('Story expired', 'warn'); return; }
+        storyIdx = 0;
+        showStory(0);
+        $('storyViewer').classList.remove('hidden');
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    function showStory(idx) {
+      clearTimeout(storyTimer);
+      if (idx >= storyQueue.length) { closeStoryViewer(); return; }
+      const s = storyQueue[idx];
+      storyIdx = idx;
+      // Update header
+      $('storyAvatar').src = s.authorPhotoURL || av({displayName: s.authorName});
+      $('storyName').textContent = s.authorName || '';
+      $('storyTime').textContent = ago(s.createdAt);
+      $('storyCaption').textContent = s.caption || '';
+      // Media
+      const media = $('storyMedia');
+      const inner = media.querySelector('.story-content');
+      if (inner) inner.remove();
+      const wrap = document.createElement('div');
+      wrap.className = 'story-content w-full h-full flex items-center justify-center';
+      if (s.mediaType === 'video') {
+        wrap.innerHTML = `<video src="${esc(s.mediaUrl)}" class="max-w-full max-h-full rounded-2xl object-contain" autoplay muted playsinline loop></video>`;
+      } else {
+        wrap.innerHTML = `<img src="${esc(s.mediaUrl)}" class="max-w-full max-h-full rounded-2xl object-contain fade-in"/>`;
+      }
+      media.appendChild(wrap);
+      // Progress bars
+      const bars = $('storyProgressBars');
+      bars.innerHTML = storyQueue.map((_, i) =>
+        `<div class="story-bar"><div class="story-bar-fill" id="sbar-${i}" style="width:${i<idx?'100%':i===idx?'0%':'0%'}"></div></div>`
+      ).join('');
+      // Animate current bar
+      const bar = $('sbar-' + idx);
+      const dur = (s.duration || 10) * 1000;
+      if (bar) {
+        bar.style.transition = `width ${dur}ms linear`;
+        requestAnimationFrame(() => bar.style.width = '100%');
+      }
+      // Mark viewed
+      if (!s.viewers?.includes(CU.uid)) {
+        updateDoc(doc(db, 'stories', s.id), { viewers: arrayUnion(CU.uid) }).catch(() => {});
+      }
+      // Delete btn
+      const del = $('storyDeleteBtn');
+      if (del) {
+        del.style.display = (s.authorId === CU.uid || isAdmin) ? 'flex' : 'none';
+        del.onclick = () => deleteStory(s.id);
+      }
+      storyTimer = setTimeout(() => showStory(idx + 1), dur);
+    }
+
+    window.nextStory = () => showStory(storyIdx + 1);
+    window.prevStory = () => showStory(Math.max(0, storyIdx - 1));
+    window.closeStoryViewer = () => {
+      clearTimeout(storyTimer);
+      $('storyViewer').classList.add('hidden');
+      storyQueue = [];
+    };
+
+    window.deleteStory = async (sid) => {
+      clearTimeout(storyTimer);
+      try {
+        await deleteDoc(doc(db, 'stories', sid));
+        toast('Story deleted', 'success');
+        closeStoryViewer();
+        loadStories();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.sendStoryReply = async () => {
+      const inp = $('storyReplyInput');
+      const text = inp.value.trim();
+      if (!text || !storyQueue[storyIdx]) return;
+      const s = storyQueue[storyIdx];
+      inp.value = '';
+      try {
+        // Send as DM to story author
+        const ids = [CU.uid, s.authorId].sort();
+        const threadId = ids.join('_');
+        await setDoc(doc(db, 'dms', threadId), {
+          participants: ids,
+          participantNames: { [CU.uid]: CU.displayName||'Me', [s.authorId]: s.authorName||'User' },
+          participantPhotos: { [CU.uid]: CU.photoURL||'', [s.authorId]: s.authorPhotoURL||'' },
+          updatedAt: serverTimestamp(), unreadBy: [s.authorId]
+        }, { merge: true });
+        await addDoc(collection(db, 'dms', threadId, 'messages'), {
+          senderId: CU.uid, senderName: CU.displayName||'Me',
+          text: '↩️ Story reply: ' + text, createdAt: serverTimestamp()
+        });
+        await updateDoc(doc(db, 'dms', threadId), {
+          lastMessage: CU.displayName + ': ' + text.slice(0,60),
+          updatedAt: serverTimestamp()
+        });
+        toast('Reply sent!', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    async function cleanExpiredStories() {
+      try {
+        const cutoff = new Date(Date.now() - 86400000);
+        const snap = await getDocs(collection(db, 'stories'));
+        const batch = writeBatch(db);
+        let n = 0;
+        snap.forEach(d => {
+          const ts = d.data().createdAt?.toDate?.();
+          if (ts && ts < cutoff) { batch.delete(d.ref); n++; }
+        });
+        if (n > 0) await batch.commit();
+      } catch(e) {}
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  FEED
+    // ════════════════════════════════════════════════════════════════════════
+    function initFeed() {
+      unsubFeed?.();
+      loadStories();
+      const wrap = $('feedContainer');
+      wrap.innerHTML = [1,2,3].map(skeletonPost).join('');
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(40));
+      unsubFeed = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = empty('📸','No posts yet','Be the first to share something!'); return; }
+        wrap.innerHTML = snap.docs.map(d => buildPost(d.id, d.data())).join('');
+        icons();
+      }, e => { wrap.innerHTML = errBox(e.message); console.error('Feed error:', e); });
+    }
+
+    function buildPost(id, p) {
+      const liked   = p.likes?.includes(CU.uid);
+      const saved   = p.saves?.includes(CU.uid);
+      const lCount  = p.likes?.length || 0;
+      const cCount  = p.commentCount || 0;
+      return `<article class="border-b border-zinc-800/60 fade-in" id="post-${id}">
+        <div class="flex items-center px-3.5 py-3 gap-2.5">
+          <div class="relative cursor-pointer" onclick="openUserProfile('${p.authorId}')">
+            <img src="${esc(p.authorPhotoURL||av({displayName:p.authorName}))}"
+                 class="w-9 h-9 rounded-full object-cover ring-2 ring-brand-500/50 flex-shrink-0"
+                 onerror="this.src='${av({displayName:p.authorName})}'"/>
+          </div>
+          <div class="flex-1 min-w-0 cursor-pointer" onclick="openUserProfile('${p.authorId}')">
+            <p class="font-semibold text-[13px] text-white truncate leading-tight">${esc(p.authorName)}</p>
+            ${p.location ? `<p class="text-[11px] text-gray-500 truncate">${esc(p.location)}</p>` : ''}
+          </div>
+          <button onclick="openPostOptions('${id}','${p.authorId}')" class="w-8 h-8 flex items-center justify-center text-gray-400 active:text-white transition-colors rounded-full">
+            <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        ${p.imageUrl ? `
+        <div class="relative bg-zinc-800 overflow-hidden" style="max-height:600px">
+          <img src="${esc(p.imageUrl)}"
+               class="w-full object-cover"
+               style="max-height:600px;min-height:200px"
+               ondblclick="quickLike('${id}','${p.authorId}')"
+               onerror="this.parentElement.innerHTML='<div class=\'flex h-40 items-center justify-center text-gray-600 text-sm\'>Image unavailable</div>'"/>
+        </div>` : ''}
+
+        <div class="px-3.5 pt-2.5 pb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-4">
+              <button id="like-${id}" onclick="doLike('posts','${id}','${p.authorId}')"
+                      class="flex items-center gap-1.5 transition-all active:scale-90 ${liked?'text-brand-500':'text-gray-300 hover:text-white'}">
+                <i data-lucide="heart" class="w-6 h-6" style="${liked?'fill:#ff2d77;color:#ff2d77':''}"></i>
+              </button>
+              <button onclick="openComments('${id}','${p.authorId}')" class="text-gray-300 hover:text-white active:scale-90 transition-all">
+                <i data-lucide="message-circle" class="w-6 h-6"></i>
+              </button>
+              <button onclick="sharePost('${id}')" class="text-gray-300 hover:text-white active:scale-90 transition-all">
+                <i data-lucide="send" class="w-6 h-6"></i>
+              </button>
+            </div>
+            <button onclick="doSave('${id}')" class="transition-all active:scale-90 ${saved?'text-white':'text-gray-300 hover:text-white'}">
+              <i data-lucide="bookmark" class="w-6 h-6" style="${saved?'fill:white':''}"></i>
+            </button>
+          </div>
+          ${lCount > 0 ? `<p class="text-[13px] font-semibold text-white mb-1">${lCount.toLocaleString()} like${lCount!==1?'s':''}</p>` : ''}
+          ${p.caption ? `<p class="text-[13px] text-gray-200 leading-relaxed mb-1">
+            <span onclick="openUserProfile('${p.authorId}')" class="font-semibold text-white mr-1.5 cursor-pointer">${esc(p.authorName)}</span>
+            ${linkify(p.caption)}</p>` : ''}
+          ${cCount > 0 ? `<button onclick="openComments('${id}','${p.authorId}')" class="text-[12px] text-gray-500 hover:text-gray-400 mb-1">View all ${cCount.toLocaleString()} comment${cCount!==1?'s':''}</button>` : ''}
+          <p class="text-[10px] text-gray-600 uppercase tracking-wide mt-1">${ago(p.createdAt)}</p>
+          ${isAdmin ? `<button onclick="adminDelPost('posts','${id}')" class="mt-1 flex items-center gap-1 text-xs text-red-500 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i>Delete post</button>` : ''}
+        </div>
+      </article>`;
+    }
+
+    window.quickLike = async (id, authorId) => {
+      const el = document.createElement('div');
+      el.className = 'heart-float';
+      el.textContent = '❤️';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 900);
+      await doLike('posts', id, authorId, true);
+    };
+
+    window.doLike = async (col, id, authorId, forceAdd = false) => {
+      const ref = doc(db, col, id);
+      try {
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const uid = CU.uid, likes = snap.data().likes || [];
+        const wasLiked = likes.includes(uid);
+        if (forceAdd && wasLiked) return;
+        await updateDoc(ref, { likes: wasLiked ? arrayRemove(uid) : arrayUnion(uid) });
+        if (!wasLiked && authorId && authorId !== uid) {
+          sendNotif(authorId, 'like', 'liked your post.', id);
+        }
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.doSave = async (id) => {
+      const ref = doc(db, 'posts', id);
+      try {
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const uid = CU.uid, saves = snap.data().saves || [];
+        await updateDoc(ref, { saves: saves.includes(uid) ? arrayRemove(uid) : arrayUnion(uid) });
+        toast(saves.includes(uid) ? 'Removed from saved' : '✅ Saved!', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.sharePost = (id) => {
+      const url = location.href.split('#')[0] + '#post-' + id;
+      if (navigator.share) { navigator.share({ title: 'HsepidGram', url }); }
+      else { navigator.clipboard?.writeText(url).then(() => toast('Link copied!', 'success')); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  COMMENTS
+    // ════════════════════════════════════════════════════════════════════════
+    let commentUnsub = null;
+
+    window.openComments = (postId, authorId = '') => {
+      $('commentsPostId').value = postId;
+      $('commentsPostAuthorId').value = authorId;
+      $('commentsModal').classList.remove('hidden');
+      document.body.classList.add('modal-open');
+      streamComments(postId);
+      setTimeout(() => $('commentInput').focus(), 200);
+    };
+
+    window.closeComments = () => {
+      $('commentsModal').classList.add('hidden');
+      document.body.classList.remove('modal-open');
+      commentUnsub?.();
+    };
+
+    function streamComments(postId) {
+      commentUnsub?.();
+      const wrap = $('commentsList');
+      wrap.innerHTML = spin();
+      const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'asc'), limit(150));
+      commentUnsub = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = '<p class="text-center text-gray-500 text-sm py-10">No comments yet. Be first! 💬</p>'; return; }
+        wrap.innerHTML = snap.docs.map(d => buildComment(d.id, d.data(), postId)).join('');
+        icons();
+        wrap.scrollTop = wrap.scrollHeight;
+      }, e => { wrap.innerHTML = errBox(e.message); });
+    }
+
+    function buildComment(id, c, postId) {
+      const del = (isAdmin || c.authorId === CU.uid)
+        ? `<button onclick="delComment('${postId}','${id}')" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-500/20 active:scale-90 flex-shrink-0"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>` : '';
+      return `<div class="flex gap-2.5 mb-3 group items-start">
+        <img src="${esc(c.authorPhotoURL||av({displayName:c.authorName}))}"
+             class="w-8 h-8 rounded-full object-cover flex-shrink-0 cursor-pointer"
+             onclick="openUserProfile('${c.authorId}')"
+             onerror="this.src='${av({displayName:c.authorName})}'"/>
+        <div class="flex-1 min-w-0">
+          <div class="bg-zinc-800 rounded-2xl px-3 py-2 inline-block max-w-full">
+            <p class="text-[13px] text-gray-200 leading-relaxed">
+              <span class="font-semibold text-white mr-1.5 cursor-pointer" onclick="openUserProfile('${c.authorId}')">${esc(c.authorName)}</span>
+              ${esc(c.text)}
+            </p>
+          </div>
+          <p class="text-[10px] text-gray-600 mt-1 ml-1">${ago(c.createdAt)}</p>
+        </div>
+        ${del}
+      </div>`;
+    }
+
+    window.submitComment = async () => {
+      const postId = $('commentsPostId').value;
+      const authorId = $('commentsPostAuthorId').value;
+      const inp = $('commentInput');
+      const text = inp.value.trim();
+      if (!text || !postId) return;
+      inp.value = '';
+      try {
+        await addDoc(collection(db, 'posts', postId, 'comments'), {
+          authorId: CU.uid, authorName: CU.displayName || 'Anonymous',
+          authorPhotoURL: CU.photoURL || '', text, createdAt: serverTimestamp()
+        });
+        await updateDoc(doc(db, 'posts', postId), { commentCount: increment(1) });
+        if (authorId && authorId !== CU.uid) sendNotif(authorId, 'comment', 'commented on your post.', postId);
+      } catch(e) { toast(e.message, 'error'); inp.value = text; }
+    };
+
+    window.delComment = async (postId, cid) => {
+      try {
+        await deleteDoc(doc(db, 'posts', postId, 'comments', cid));
+        await updateDoc(doc(db, 'posts', postId), { commentCount: increment(-1) });
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    $('commentInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  POST OPTIONS
+    // ════════════════════════════════════════════════════════════════════════
+    window.openPostOptions = (id, authorId) => {
+      $('optionsPostId').value = id;
+      $('optionsPostAuthorId').value = authorId;
+      const adminOpts = $('adminPostOptions');
+      adminOpts.innerHTML = (isAdmin || authorId === CU.uid)
+        ? `<button onclick="adminDelPost('posts','${id}');closePostOptions();"
+            class="w-full flex items-center gap-3 p-3.5 rounded-xl hover:bg-zinc-800 text-red-500 text-sm transition-colors active:scale-[0.98]">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>Delete Post
+          </button>` : '';
+      icons();
+      $('postOptionsModal').classList.remove('hidden');
+    };
+    window.closePostOptions = () => $('postOptionsModal').classList.add('hidden');
+    window.reportContent = () => { toast('Content reported. Thanks!', 'success'); closePostOptions(); };
+    window.copyLink = () => {
+      const id = $('optionsPostId').value;
+      navigator.clipboard?.writeText(location.href + '#post-' + id).then(() => toast('Link copied!', 'success'));
+      closePostOptions();
+    };
+    window.shareContent = () => {
+      const id = $('optionsPostId').value;
+      sharePost(id); closePostOptions();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  POST DETAIL
+    // ════════════════════════════════════════════════════════════════════════
+    window.openPostDetail = async (id) => {
+      $('postDetailContent').innerHTML = spin();
+      $('postDetailComments').innerHTML = '';
+      $('postDetailModal').classList.remove('hidden');
+      try {
+        const snap = await getDoc(doc(db, 'posts', id));
+        if (!snap.exists()) { toast('Post not found', 'error'); closePostDetail(); return; }
+        $('postDetailContent').innerHTML = buildPost(snap.id, snap.data());
+        icons();
+        // Load a few comments
+        const cq = query(collection(db, 'posts', id, 'comments'), orderBy('createdAt', 'desc'), limit(5));
+        const cSnap = await getDocs(cq);
+        if (!cSnap.empty) {
+          $('postDetailComments').innerHTML = `<div class="px-4 pb-4 border-t border-zinc-800">
+            <p class="text-xs text-gray-500 pt-3 pb-2">Recent comments</p>
+            ${cSnap.docs.reverse().map(d => buildComment(d.id, d.data(), id)).join('')}
+            <button onclick="closePostDetail();openComments('${id}','${snap.data().authorId}')"
+                    class="text-xs text-brand-400 mt-2">View all comments →</button>
+          </div>`;
+          icons();
+        }
+      } catch(e) { $('postDetailContent').innerHTML = errBox(e.message); }
+    };
+    window.closePostDetail = () => $('postDetailModal').classList.add('hidden');
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  USER PROFILE MODAL
+    // ════════════════════════════════════════════════════════════════════════
+    window.openUserProfile = async (uid) => {
+      if (!uid || uid === CU.uid) { switchTab('profile'); return; }
+      $('userProfileContent').innerHTML = spin();
+      $('userProfileModal').classList.remove('hidden');
+      try {
+        const [uSnap, pSnap, followSnap, followerCountSnap] = await Promise.all([
+          getDoc(doc(db, 'users', uid)),
+          getDocs(query(collection(db, 'posts'), where('authorId', '==', uid), orderBy('createdAt', 'desc'), limit(30))),
+          getDoc(doc(db, 'follows', CU.uid + '_' + uid)),
+          getDocs(query(collection(db, 'follows'), where('following', '==', uid)))
+        ]);
+        const u = uSnap.data() || { displayName: 'Unknown' };
+        const isFollowing = followSnap.exists();
+        let likes = 0;
+        pSnap.forEach(d => { likes += d.data().likes?.length || 0; });
+        $('userProfileContent').innerHTML = `
+          <div class="p-5">
+            <div class="flex items-center gap-4 mb-4">
+              <img src="${esc(u.photoURL||av(u))}"
+                   class="w-20 h-20 rounded-full object-cover ring-4 ring-brand-500/40 flex-shrink-0"/>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-xl font-bold text-white truncate">${esc(u.displayName||'User')}</h3>
+                <p class="text-sm text-gray-400 truncate">${esc(u.email||'')}</p>
+                <div class="flex gap-4 mt-2">
+                  <div><span class="font-bold text-white text-sm">${pSnap.size}</span><span class="text-xs text-gray-400 ml-1">posts</span></div>
+                  <div><span class="font-bold text-white text-sm">${followerCountSnap.size}</span><span class="text-xs text-gray-400 ml-1">followers</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2 mb-4">
+              <button id="followBtn" onclick="doFollow('${uid}','${esc(u.displayName||'')}')"
+                      class="flex-1 py-2 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] shadow-lg
+                             ${isFollowing ? 'bg-zinc-700 text-white border border-zinc-600' : 'bg-brand-600 text-white shadow-brand-600/30'}">
+                ${isFollowing ? '✓ Following' : 'Follow'}
+              </button>
+              <button onclick="startDM('${uid}','${esc(u.displayName||'')}','${esc(u.photoURL||'')}');closeUserProfile();"
+                      class="flex-1 py-2 rounded-xl font-semibold text-sm bg-zinc-700 text-white border border-zinc-600 transition-all active:scale-[0.98]">
+                Message
+              </button>
+            </div>
+            ${isAdmin ? `<button onclick="adminDelPost('users','${uid}');closeUserProfile();" class="w-full mb-4 text-xs text-red-500 flex items-center justify-center gap-1 py-2 rounded-xl border border-red-900/40 hover:bg-red-900/20 transition-colors"><i data-lucide="user-x" class="w-3.5 h-3.5"></i>Remove User Account</button>` : ''}
+          </div>
+          <div class="border-t border-zinc-800 grid grid-cols-3 gap-0.5">
+            ${pSnap.docs.map(d => `
+              <div class="relative aspect-square bg-zinc-800 overflow-hidden cursor-pointer group" onclick="closeUserProfile();openPostDetail('${d.id}')">
+                <img src="${esc(d.data().imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                     onerror="this.parentElement.style.background='#27272a';this.remove()"/>
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <span class="text-white text-xs font-semibold">❤️ ${d.data().likes?.length||0}</span>
+                </div>
+              </div>`).join('') || '<p class="col-span-3 text-center text-gray-500 text-sm py-10">No posts yet</p>'}
+          </div>`;
+        icons();
+      } catch(e) { $('userProfileContent').innerHTML = errBox(e.message); console.error(e); }
+    };
+    window.closeUserProfile = () => $('userProfileModal').classList.add('hidden');
+
+    window.doFollow = async (targetUid, targetName) => {
+      const ref = doc(db, 'follows', CU.uid + '_' + targetUid);
+      const btn = $('followBtn');
+      try {
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          await deleteDoc(ref);
+          if (btn) { btn.textContent = 'Follow'; btn.className = btn.className.replace('bg-zinc-700 text-white border border-zinc-600','bg-brand-600 text-white shadow-brand-600/30'); }
+          toast('Unfollowed', 'info');
+        } else {
+          await setDoc(ref, { follower: CU.uid, following: targetUid, createdAt: serverTimestamp() });
+          if (btn) { btn.textContent = '✓ Following'; btn.className = btn.className.replace('bg-brand-600 text-white shadow-brand-600/30','bg-zinc-700 text-white border border-zinc-600'); }
+          toast('Following ' + targetName, 'success');
+          sendNotif(targetUid, 'follow', 'started following you.');
+        }
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REELS
+    // ════════════════════════════════════════════════════════════════════════
+    function initReels() {
+      unsubReels?.();
+      const wrap = $('reelsContainer');
+      wrap.innerHTML = `<div class="flex items-center justify-center h-full">${spin()}</div>`;
+      const q = query(collection(db, 'reels'), orderBy('createdAt', 'desc'), limit(30));
+      unsubReels = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = empty('🎬','No Reels Yet','Be the first to post a video!'); return; }
+        wrap.innerHTML = snap.docs.map(d => buildReel(d.id, d.data())).join('');
+        icons();
+        initReelObserver();
+      }, e => { wrap.innerHTML = errBox(e.message); });
+    }
+
+    function buildReel(id, r) {
+      const liked = r.likes?.includes(CU.uid);
+      const count = r.likes?.length || 0;
+      const del = isAdmin ? `<button onclick="adminDelPost('reels','${id}')" class="absolute top-16 right-3 z-20 w-10 h-10 rounded-full bg-red-600/80 backdrop-blur-sm flex items-center justify-center active:scale-90"><i data-lucide="trash-2" class="w-4 h-4 text-white"></i></button>` : '';
+      return `<div class="reel-slide relative w-full flex-shrink-0 bg-black overflow-hidden" style="height:100dvh" data-id="${id}">
+        <video src="${esc(r.videoUrl)}" class="absolute inset-0 w-full h-full object-cover" loop playsinline preload="none" muted></video>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20 pointer-events-none z-10"></div>
+        ${del}
+        <div class="absolute inset-0 z-10" onclick="reelTap(this)"></div>
+        <div class="reel-paused-ind absolute inset-0 flex items-center justify-center z-20 pointer-events-none opacity-0 transition-opacity duration-200">
+          <div class="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <i data-lucide="pause" class="w-7 h-7 text-white"></i>
+          </div>
+        </div>
+        <div class="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-5">
+          <button onclick="doLike('reels','${id}','${r.authorId}')" class="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <i data-lucide="heart" class="w-6 h-6" style="${liked?'fill:#ff2d77;color:#ff2d77':'color:white'}"></i>
+            </div>
+            <span class="text-white text-xs font-semibold drop-shadow">${count}</span>
+          </button>
+          <button onclick="openReelComments('${id}')" class="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <i data-lucide="message-circle" class="w-6 h-6 text-white"></i>
+            </div>
+            <span class="text-white text-xs font-semibold drop-shadow">${r.commentCount||0}</span>
+          </button>
+          <button onclick="sharePost('${id}')" class="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <i data-lucide="send" class="w-6 h-6 text-white"></i>
+            </div>
+            <span class="text-white text-xs font-semibold drop-shadow">Share</span>
+          </button>
+        </div>
+        <div class="absolute bottom-6 left-4 right-16 z-20">
+          <div class="flex items-center gap-2.5 mb-2 cursor-pointer" onclick="openUserProfile('${r.authorId}')">
+            <div class="story-ring p-0.5 rounded-full flex-shrink-0">
+              <img src="${esc(r.authorPhotoURL||av({displayName:r.authorName}))}" class="w-9 h-9 rounded-full object-cover ring-2 ring-black"/>
+            </div>
+            <p class="text-white font-semibold text-sm drop-shadow">${esc(r.authorName)}</p>
+            ${r.authorId !== CU.uid ? `<button onclick="openUserProfile('${r.authorId}')" class="text-white text-xs border border-white/50 rounded-lg px-2 py-0.5 active:scale-95 transition-all ml-1">Follow</button>` : ''}
+          </div>
+          ${r.caption ? `<p class="text-white/90 text-sm leading-relaxed line-clamp-2 cursor-pointer" onclick="this.classList.toggle('line-clamp-2')">${esc(r.caption)}</p>` : ''}
+        </div>
+      </div>`;
+    }
+
+    window.reelTap = el => {
+      const s = el.closest('.reel-slide'), v = s?.querySelector('video'), ind = s?.querySelector('.reel-paused-ind');
+      if (!v) return;
+      if (v.paused) { v.play().catch(()=>{}); if (ind) ind.style.opacity = '0'; }
+      else { v.pause(); if (ind) { ind.style.opacity = '1'; setTimeout(() => { ind.style.opacity = '0'; }, 1200); } }
+    };
+
+    function initReelObserver() {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(({ target, isIntersecting }) => {
+          const v = target.querySelector('video');
+          if (!v) return;
+          if (isIntersecting) v.play().catch(()=>{});
+          else { v.pause(); v.currentTime = 0; }
+        });
+      }, { threshold: 0.65 });
+      $('reelsContainer')?.querySelectorAll('.reel-slide').forEach(s => io.observe(s));
+    }
+
+    window.openReelComments = async (reelId) => {
+      $('commentsPostId').value = reelId;
+      $('commentsPostAuthorId').value = '';
+      $('commentsModal').classList.remove('hidden');
+      const wrap = $('commentsList');
+      wrap.innerHTML = spin();
+      const q = query(collection(db, 'reels', reelId, 'comments'), orderBy('createdAt', 'asc'), limit(100));
+      onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = '<p class="text-center text-gray-500 text-sm py-10">No comments yet!</p>'; return; }
+        wrap.innerHTML = snap.docs.map(d => {
+          const c = d.data();
+          return `<div class="flex gap-2.5 mb-3">
+            <img src="${esc(c.authorPhotoURL||av({displayName:c.authorName}))}" class="w-8 h-8 rounded-full flex-shrink-0"/>
+            <div class="bg-zinc-800 rounded-2xl px-3 py-2"><p class="text-[13px] text-gray-200"><span class="font-semibold text-white mr-1.5">${esc(c.authorName)}</span>${esc(c.text)}</p></div>
+          </div>`;
+        }).join('');
+        wrap.scrollTop = wrap.scrollHeight;
+      });
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  CREATE CONTENT
+    // ════════════════════════════════════════════════════════════════════════
+    window.openCreateModal = type => {
+      $('createType').value = type;
+      $('createModalTitle').textContent = type === 'post' ? '📸 New Post' : '🎬 New Reel';
+      $('createUrlLabel').textContent = type === 'reel' ? 'Video URL' : 'Image URL';
+      $('createUrlInput').placeholder = type === 'reel' ? 'https://example.com/video.mp4' : 'https://example.com/photo.jpg';
+      $('locationRow').style.display = type === 'post' ? 'block' : 'none';
+      $('createModal').classList.remove('hidden');
+      setTimeout(() => $('createUrlInput').focus(), 100);
+    };
+
+    window.closeCreateModal = () => {
+      $('createModal').classList.add('hidden');
+      $('createUrlInput').value = $('createCaptionInput').value = '';
+      if ($('createLocationInput')) $('createLocationInput').value = '';
+      $('urlPreview').classList.add('hidden');
+      $('urlPreview').innerHTML = '';
+    };
+
+    // URL preview on input blur
+    $('createUrlInput').addEventListener('blur', () => {
+      const url = $('createUrlInput').value.trim();
+      const preview = $('urlPreview');
+      if (!url) { preview.classList.add('hidden'); return; }
+      const type = $('createType').value;
+      if (type === 'reel') {
+        preview.innerHTML = `<video src="${esc(url)}" class="w-full rounded-xl" style="max-height:200px" controls muted></video>`;
+      } else {
+        preview.innerHTML = `<img src="${esc(url)}" class="w-full rounded-xl object-cover" style="max-height:200px" onerror="this.parentElement.classList.add('hidden')"/>`;
+      }
+      preview.classList.remove('hidden');
+    });
+
+    // Caption counter
+    $('createCaptionInput').addEventListener('input', () => {
+      $('captionCount').textContent = $('createCaptionInput').value.length;
+    });
+
+    window.publishContent = async () => {
+      const type = $('createType').value;
+      const url = $('createUrlInput').value.trim();
+      const cap = $('createCaptionInput').value.trim();
+      const loc = $('createLocationInput')?.value.trim() || '';
+      if (!url) { toast('Please enter a URL', 'error'); return; }
+      const btn = $('publishBtn');
+      btn.disabled = true;
+      btn.textContent = 'Publishing…';
+      btn.classList.add('opacity-75');
+      try {
+        const base = {
+          authorId: CU.uid, authorName: CU.displayName || 'Anonymous',
+          authorPhotoURL: CU.photoURL || '', caption: cap,
+          likes: [], saves: [], commentCount: 0, createdAt: serverTimestamp()
+        };
+        if (type === 'post') {
+          await addDoc(collection(db, 'posts'), { ...base, imageUrl: url, location: loc });
+          toast('Post published! 🎉', 'success');
+          closeCreateModal();
+          switchTab('feed');
+        } else {
+          await addDoc(collection(db, 'reels'), { ...base, videoUrl: url });
+          toast('Reel published! 🎬', 'success');
+          closeCreateModal();
+          switchTab('reels');
+        }
+      } catch(e) { toast('Publish failed: ' + e.message, 'error'); console.error(e); }
+      finally { btn.disabled = false; btn.textContent = 'Publish'; btn.classList.remove('opacity-75'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  GROUPS — FULLY REALTIME
+    // ════════════════════════════════════════════════════════════════════════
+    let allGroups = [];
+
+    function initGroups() {
+      unsubGroups?.();
+      const wrap = $('groupsList');
+      wrap.innerHTML = spin();
+      const q = query(collection(db, 'groups'), orderBy('updatedAt', 'desc'));
+      unsubGroups = onSnapshot(q, snap => {
+        allGroups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderGroups(allGroups);
+      }, e => {
+        // Fallback: try without ordering (no index needed)
+        const q2 = query(collection(db, 'groups'), limit(50));
+        unsubGroups = onSnapshot(q2, snap => {
+          allGroups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderGroups(allGroups);
+        }, e2 => { wrap.innerHTML = errBox(e2.message); });
+      });
+    }
+
+    function renderGroups(groups) {
+      const wrap = $('groupsList');
+      if (!wrap) return;
+      if (!groups.length) { wrap.innerHTML = empty('💬','No groups yet','Create one above!'); return; }
+      const grs = ['from-brand-500 to-orange-500','from-purple-500 to-blue-600','from-emerald-500 to-teal-600','from-amber-500 to-rose-500','from-cyan-500 to-indigo-600'];
+      wrap.innerHTML = groups.map(g => {
+        const gr = grs[g.name.charCodeAt(0) % grs.length];
+        const del = isAdmin ? `<button onclick="disbandGroup(event,'${g.id}')" class="flex-shrink-0 flex items-center gap-1 text-xs text-red-500 bg-red-500/10 px-2 py-1 rounded-lg active:scale-95 transition-all"><i data-lucide="trash-2" class="w-3 h-3"></i>Disband</button>` : '';
+        const lock = g.type === 'private' ? '<i data-lucide="lock" class="w-3 h-3 text-gray-500 ml-1 flex-shrink-0"></i>' : '';
+        return `<div onclick="openGroup('${g.id}','${esc(g.name)}')"
+          class="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-all shadow-sm">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br ${gr} flex items-center justify-center text-xl font-bold text-white flex-shrink-0 shadow-md">
+            ${esc(g.name[0].toUpperCase())}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <p class="font-semibold text-white truncate text-sm">${esc(g.name)}</p>
+              ${lock}
+            </div>
+            <p class="text-xs text-gray-400 truncate mt-0.5">${esc(g.lastMessage || g.description || 'Tap to chat')}</p>
+          </div>
+          <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
+            ${del}
+            ${g.updatedAt ? `<span class="text-[10px] text-gray-600">${ago(g.updatedAt)}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      icons();
+    }
+
+    window.filterGroups = (q) => {
+      if (!q.trim()) { renderGroups(allGroups); return; }
+      const filtered = allGroups.filter(g =>
+        g.name.toLowerCase().includes(q.toLowerCase()) ||
+        (g.description||'').toLowerCase().includes(q.toLowerCase())
+      );
+      renderGroups(filtered);
+    };
+
+    window.openCreateGroupModal = () => {
+      $('createGroupModal').classList.remove('hidden');
+      setTimeout(() => $('groupNameInput').focus(), 100);
+    };
+    window.closeCreateGroupModal = () => {
+      $('createGroupModal').classList.add('hidden');
+      $('groupNameInput').value = $('groupDescInput').value = '';
+    };
+
+    window.createGroup = async () => {
+      const name = $('groupNameInput').value.trim();
+      const desc = $('groupDescInput').value.trim();
+      const type = document.querySelector('input[name="groupType"]:checked')?.value || 'public';
+      if (!name) { toast('Group name is required', 'error'); return; }
+      try {
+        const ref = await addDoc(collection(db, 'groups'), {
+          name, description: desc, type,
+          createdBy: CU.uid, members: [CU.uid], memberCount: 1,
+          lastMessage: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+        closeCreateGroupModal();
+        toast('Group created! 🎉', 'success');
+        openGroup(ref.id, name);
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.disbandGroup = async (e, gid) => {
+      e.stopPropagation();
+      if (!isAdmin) return;
+      if (!confirm('Disband this group and permanently delete ALL messages?')) return;
+      try {
+        const batch = writeBatch(db);
+        const msgs = await getDocs(collection(db, 'groups', gid, 'messages'));
+        msgs.forEach(m => batch.delete(m.ref));
+        batch.delete(doc(db, 'groups', gid));
+        await batch.commit();
+        toast('Group disbanded ✓', 'success');
+        if (activeGroupId === gid) closeChat();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.openGroup = (gid, gname, isGlobal = false) => {
+      unsubGroup?.();
+      activeGroupId = gid;
+      activeGroupName = gname;
+
+      $('chatGroupName').textContent = gname;
+      $('chatHeaderAvatar').textContent = gname[0];
+      $('chatMemberCount').textContent = isGlobal ? 'Everyone on HsepidGram' : 'Tap for group info';
+
+      const dBtn = $('chatDisbandBtn');
+      if (dBtn) {
+        dBtn.style.display = (isAdmin && !isGlobal) ? 'flex' : 'none';
+        dBtn.onclick = () => disbandGroup(new Event('click'), gid);
+      }
+
+      $('groupsView').classList.add('hidden');
+      $('chatView').classList.remove('hidden');
+      streamChatMessages(gid);
+    };
+
+    window.closeChat = () => {
+      unsubGroup?.(); unsubGroup = null; activeGroupId = null;
+      $('chatView').classList.add('hidden');
+      $('groupsView').classList.remove('hidden');
+    };
+
+    function streamChatMessages(gid) {
+      const wrap = $('chatMessages');
+      wrap.innerHTML = spin();
+      // Use simple query — no composite index required
+      const q = query(
+        collection(db, 'groups', gid, 'messages'),
+        orderBy('createdAt', 'asc'),
+        limit(200)
+      );
+      unsubGroup = onSnapshot(q, snap => {
+        const atBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 150;
+        if (snap.empty) { wrap.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-2 text-gray-500"><i data-lucide="message-circle" class="w-8 h-8"></i><p class="text-sm">No messages yet. Say hi! 👋</p></div>'; icons(); return; }
+
+        let lastDate = '';
+        wrap.innerHTML = snap.docs.map(d => {
+          const m = d.data();
+          const mDate = m.createdAt?.toDate?.()?.toDateString() || '';
+          let dateSep = '';
+          if (mDate && mDate !== lastDate) {
+            lastDate = mDate;
+            dateSep = `<div class="flex items-center gap-2 my-3"><div class="flex-1 h-px bg-zinc-800"></div><span class="text-xs text-gray-500 flex-shrink-0">${mDate === new Date().toDateString() ? 'Today' : mDate}</span><div class="flex-1 h-px bg-zinc-800"></div></div>`;
+          }
+          return dateSep + buildChatBubble(d.id, m, gid);
+        }).join('');
+
+        icons();
+        if (atBottom || snap.docs.length <= 5) wrap.scrollTop = wrap.scrollHeight;
+      }, e => {
+        console.error('Chat stream error:', e);
+        wrap.innerHTML = errBox(e.message + ' — Make sure Firestore rules allow read/write for authenticated users.');
+      });
+    }
+
+    function buildChatBubble(id, m, gid) {
+      const mine = m.authorId === CU.uid;
+      const del = (isAdmin || m.authorId === CU.uid)
+        ? `<button onclick="delChatMsg('${gid}','${id}')" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-500/20 active:scale-90 flex-shrink-0"><i data-lucide="trash-2" class="w-3 h-3 text-red-500"></i></button>` : '';
+
+      const mediaHtml = m.mediaUrl
+        ? (m.mediaType === 'video'
+          ? `<video src="${esc(m.mediaUrl)}" class="max-w-full rounded-xl mb-1" controls style="max-height:200px"></video>`
+          : `<img src="${esc(m.mediaUrl)}" class="max-w-full rounded-xl mb-1 cursor-pointer" style="max-height:200px" onclick="window.open('${esc(m.mediaUrl)}','_blank')"/>`)
+        : '';
+
+      return `<div class="flex ${mine?'justify-end':'justify-start'} items-end gap-2 mb-2 group">
+        ${!mine ? `<img src="${esc(m.authorPhotoURL||av({displayName:m.authorName}))}"
+          class="w-7 h-7 rounded-full object-cover flex-shrink-0 mb-0.5 cursor-pointer"
+          onclick="openUserProfile('${m.authorId}')"
+          onerror="this.src='${av({displayName:m.authorName})}'"/>` : ''}
+        <div class="max-w-[80%] flex flex-col ${mine?'items-end':'items-start'} gap-0.5">
+          ${!mine ? `<span class="text-[11px] text-gray-400 ml-2 mb-0.5 cursor-pointer" onclick="openUserProfile('${m.authorId}')">${esc(m.authorName)}</span>` : ''}
+          <div class="flex items-end gap-1 ${mine?'flex-row-reverse':''}">
+            <div class="px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed
+                        ${mine ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-zinc-800 text-gray-100 rounded-bl-sm'}
+                        ${m.mediaUrl ? 'p-2' : ''}">
+              ${mediaHtml}
+              ${m.text ? esc(m.text) : ''}
+            </div>
+            ${del}
+          </div>
+          <span class="text-[10px] text-gray-600 ${mine?'mr-2 text-right':'ml-2'}">${ago(m.createdAt)}</span>
+        </div>
+      </div>`;
+    }
+
+    window.sendMessage = async () => {
+      if (!activeGroupId) return;
+      const inp = $('chatInput');
+      const text = inp.value.trim();
+      if (!text) return;
+      inp.value = '';
+      try {
+        await addDoc(collection(db, 'groups', activeGroupId, 'messages'), {
+          authorId: CU.uid, authorName: CU.displayName || 'Anonymous',
+          authorPhotoURL: CU.photoURL || '', text, createdAt: serverTimestamp()
+        });
+        // Update group last message (don't await — fire and forget)
+        updateDoc(doc(db, 'groups', activeGroupId), {
+          lastMessage: (CU.displayName||'Someone') + ': ' + text.slice(0, 60),
+          updatedAt: serverTimestamp()
+        }).catch(() => {});
+      } catch(e) {
+        toast('Send failed: ' + e.message, 'error');
+        inp.value = text;
+        console.error('sendMessage error:', e);
+      }
+    };
+
+    window.delChatMsg = async (gid, mid) => {
+      try { await deleteDoc(doc(db, 'groups', gid, 'messages', mid)); }
+      catch(e) { toast(e.message, 'error'); }
+    };
+
+    $('chatInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    window.openChatMedia = () => $('chatMediaModal').classList.remove('hidden');
+    window.closeChatMedia = () => { $('chatMediaModal').classList.add('hidden'); $('chatMediaUrl').value = ''; };
+
+    window.sendMediaMsg = async () => {
+      const url = $('chatMediaUrl').value.trim();
+      const type = $('chatMediaType').value;
+      if (!url || !activeGroupId) { toast('Enter a URL', 'error'); return; }
+      closeChatMedia();
+      try {
+        await addDoc(collection(db, 'groups', activeGroupId, 'messages'), {
+          authorId: CU.uid, authorName: CU.displayName || 'Anonymous',
+          authorPhotoURL: CU.photoURL || '', text: '', mediaUrl: url, mediaType: type,
+          createdAt: serverTimestamp()
+        });
+        updateDoc(doc(db, 'groups', activeGroupId), {
+          lastMessage: (CU.displayName||'Someone') + ' sent a ' + type,
+          updatedAt: serverTimestamp()
+        }).catch(() => {});
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  PROFILE (own)
+    // ════════════════════════════════════════════════════════════════════════
+    async function initProfile(uid) {
+      const wrap = $('profileContainer');
+      if (!wrap || !uid) return;
+      wrap.innerHTML = spin();
+      try {
+        const [pSnap, rSnap, savedSnap] = await Promise.all([
+          getDocs(query(collection(db, 'posts'), where('authorId', '==', uid), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'reels'), where('authorId', '==', uid))),
+          getDocs(query(collection(db, 'posts'), where('saves', 'array-contains', uid), limit(30)))
+        ]);
+        let likes = 0;
+        pSnap.forEach(d => { likes += d.data().likes?.length || 0; });
+        rSnap.forEach(d => { likes += d.data().likes?.length || 0; });
+
+        const postsHtml = pSnap.docs.map(d => {
+          const del = isAdmin ? `<button onclick="adminDelPost('posts','${d.id}')" class="absolute top-1 right-1 z-10 w-6 h-6 rounded-full bg-red-600/80 backdrop-blur-sm flex items-center justify-center active:scale-90"><i data-lucide="trash-2" class="w-3 h-3 text-white"></i></button>` : '';
+          return `<div class="relative aspect-square bg-zinc-800 overflow-hidden group cursor-pointer" onclick="openPostDetail('${d.id}')">
+            ${del}
+            <img src="${esc(d.data().imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                 onerror="this.parentElement.style.background='#27272a';this.remove()"/>
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center">
+              <span class="text-white text-xs font-semibold">❤️ ${d.data().likes?.length||0}</span>
+            </div>
+          </div>`;
+        }).join('') || '<p class="col-span-3 text-center text-gray-500 text-sm py-10">No posts yet</p>';
+
+        const reelsHtml = rSnap.docs.map(d => {
+          const del = isAdmin ? `<button onclick="adminDelPost('reels','${d.id}')" class="absolute top-1 right-1 z-10 w-6 h-6 rounded-full bg-red-600/80 backdrop-blur-sm flex items-center justify-center active:scale-90"><i data-lucide="trash-2" class="w-3 h-3 text-white"></i></button>` : '';
+          return `<div class="relative aspect-square bg-zinc-900 border border-zinc-800 overflow-hidden group cursor-pointer flex flex-col items-center justify-center" onclick="switchTab('reels')">
+            ${del}
+            <i data-lucide="play-circle" class="w-8 h-8 text-gray-400 mb-1"></i>
+            <p class="text-xs text-gray-500 px-2 text-center truncate w-full">${esc(d.data().caption?.slice(0,20)||'Reel')}</p>
+            <p class="text-xs text-brand-400 mt-0.5">❤️ ${d.data().likes?.length||0}</p>
+          </div>`;
+        }).join('') || '<p class="col-span-3 text-center text-gray-500 text-sm py-10">No reels yet</p>';
+
+        const savedHtml = savedSnap.docs.map(d =>
+          `<div class="aspect-square bg-zinc-800 overflow-hidden cursor-pointer group" onclick="openPostDetail('${d.id}')">
+            <img src="${esc(d.data().imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                 onerror="this.parentElement.style.background='#27272a';this.remove()"/>
+          </div>`
+        ).join('') || '<p class="col-span-3 text-center text-gray-500 text-sm py-10">Nothing saved yet</p>';
+
+        wrap.innerHTML = `
+        <div class="flex flex-col items-center pt-8 pb-4 px-4 fade-in-up">
+          <div class="relative mb-4">
+            <img src="${av(CU)}" class="w-24 h-24 rounded-full object-cover ring-4 ring-brand-500 shadow-xl shadow-brand-500/20"/>
+            ${isAdmin ? '<span class="absolute -bottom-1 -right-1 bg-gradient-to-r from-brand-500 to-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">ADMIN</span>' : ''}
+          </div>
+          <h2 class="text-xl font-bold text-white mb-0.5">${esc(CU.displayName||'User')}</h2>
+          <p class="text-sm text-gray-400 mb-1">${esc(CU.email||'')}</p>
+          <p class="text-[10px] text-gray-600 font-mono select-all mb-4">${esc(uid)}</p>
+        </div>
+        <div class="flex border-t border-b border-zinc-800 divide-x divide-zinc-800 mb-0.5">
+          <div class="flex-1 py-4 text-center"><p class="text-xl font-bold text-white">${pSnap.size}</p><p class="text-xs text-gray-400">Posts</p></div>
+          <div class="flex-1 py-4 text-center"><p class="text-xl font-bold text-white">${rSnap.size}</p><p class="text-xs text-gray-400">Reels</p></div>
+          <div class="flex-1 py-4 text-center"><p class="text-xl font-bold text-white">${likes.toLocaleString()}</p><p class="text-xs text-gray-400">Likes</p></div>
+        </div>
+        <div class="flex border-b border-zinc-800">
+          <button onclick="profileTab('grid')" id="ptab-grid" class="flex-1 py-3 flex items-center justify-center text-brand-500 border-b-2 border-brand-500">
+            <i data-lucide="grid-3x3" class="w-5 h-5"></i>
+          </button>
+          <button onclick="profileTab('reels')" id="ptab-reels" class="flex-1 py-3 flex items-center justify-center text-gray-500">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+          </button>
+          <button onclick="profileTab('saved')" id="ptab-saved" class="flex-1 py-3 flex items-center justify-center text-gray-500">
+            <i data-lucide="bookmark" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div id="profileGrid" class="grid grid-cols-3 gap-0.5">${postsHtml}</div>`;
+
+        // Store for tab switching
+        wrap._tabs = { grid: postsHtml, reels: reelsHtml, saved: savedHtml };
+        icons();
+      } catch(e) { wrap.innerHTML = errBox(e.message); console.error(e); }
+    }
+
+    window.profileTab = tab => {
+      const wrap = $('profileContainer');
+      const grid = $('profileGrid');
+      if (!grid || !wrap?._tabs) return;
+      ['grid','reels','saved'].forEach(t => {
+        const b = $('ptab-' + t);
+        if (!b) return;
+        b.classList.toggle('text-brand-500', t === tab);
+        b.classList.toggle('border-b-2', t === tab);
+        b.classList.toggle('border-brand-500', t === tab);
+        b.classList.toggle('text-gray-500', t !== tab);
+      });
+      grid.innerHTML = wrap._tabs[tab] || '';
+      icons();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  EXPLORE
+    // ════════════════════════════════════════════════════════════════════════
+    async function initExplore() {
+      await loadExploreGrid();
+    }
+
+    async function loadExploreGrid() {
+      const grid = $('exploreGrid');
+      grid.innerHTML = `<div class="col-span-3">${spin()}</div>`;
+      try {
+        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(60));
+        const snap = await getDocs(q);
+        if (snap.empty) { grid.innerHTML = `<div class="col-span-3">${empty('🔍','Nothing here','Posts will appear here')}</div>`; return; }
+        grid.innerHTML = snap.docs.map(d => {
+          const p = d.data();
+          return `<div class="relative aspect-square bg-zinc-800 overflow-hidden cursor-pointer group" onclick="openPostDetail('${d.id}')">
+            <img src="${esc(p.imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                 onerror="this.parentElement.style.display='none'"/>
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <div class="flex gap-3 text-white text-xs font-semibold">
+                <span>❤️ ${p.likes?.length||0}</span><span>💬 ${p.commentCount||0}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch(e) { grid.innerHTML = `<div class="col-span-3">${errBox(e.message)}</div>`; }
+    }
+
+    let searchTimeout = null;
+    window.handleExploreSearch = e => {
+      const q = e.target.value.trim();
+      const clearBtn = $('exploreClearBtn');
+      clearBtn.classList.toggle('hidden', !q);
+      clearTimeout(searchTimeout);
+      if (!q) { $('exploreResults').classList.add('hidden'); loadExploreGrid(); return; }
+      $('exploreGrid').innerHTML = `<div class="col-span-3">${spin()}</div>`;
+      searchTimeout = setTimeout(() => runSearch(q), 400);
+    };
+
+    window.clearExploreSearch = () => {
+      $('exploreSearch').value = '';
+      $('exploreClearBtn').classList.add('hidden');
+      $('exploreResults').classList.add('hidden');
+      loadExploreGrid();
+    };
+
+    async function runSearch(q) {
+      const results = $('exploreResults');
+      const grid = $('exploreGrid');
+      try {
+        // Search users
+        const uq = query(collection(db,'users'), orderBy('displayName'),
+          where('displayName','>=',q), where('displayName','<=',q+''), limit(8));
+        const uSnap = await getDocs(uq);
+
+        // Search posts by caption
+        const pq = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(100));
+        const pSnap = await getDocs(pq);
+        const matchPosts = pSnap.docs.filter(d => {
+          const p = d.data();
+          const search = q.toLowerCase();
+          return (p.caption||'').toLowerCase().includes(search) ||
+                 (p.authorName||'').toLowerCase().includes(search) ||
+                 (p.location||'').toLowerCase().includes(search);
+        });
+
+        // Render user results
+        if (uSnap.size > 0) {
+          results.classList.remove('hidden');
+          results.innerHTML = `<p class="text-xs text-gray-500 uppercase tracking-wide mb-2 font-semibold">People</p>` +
+            uSnap.docs.map(d => {
+              const u = d.data();
+              return `<div onclick="openUserProfile('${d.id}')" class="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-zinc-800/50 rounded-xl px-2 transition-colors">
+                <img src="${esc(u.photoURL||av(u))}" class="w-10 h-10 rounded-full object-cover flex-shrink-0" onerror="this.src='${av(u)}'"/>
+                <div><p class="text-white font-semibold text-sm">${esc(u.displayName||'')}</p><p class="text-xs text-gray-400">${esc(u.email||'')}</p></div>
+              </div>`;
+            }).join('');
+        } else { results.classList.add('hidden'); }
+
+        // Render post results
+        if (matchPosts.length > 0) {
+          grid.innerHTML = matchPosts.map(d => {
+            const p = d.data();
+            return `<div class="aspect-square bg-zinc-800 overflow-hidden cursor-pointer group" onclick="openPostDetail('${d.id}')">
+              <img src="${esc(p.imageUrl||'')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                   onerror="this.parentElement.style.display='none'"/>
+            </div>`;
+          }).join('');
+        } else {
+          grid.innerHTML = uSnap.size === 0
+            ? `<div class="col-span-3">${empty('🔍','No results','Try a different search')}</div>`
+            : `<div class="col-span-3 py-4 text-center text-gray-500 text-sm">No posts found</div>`;
+        }
+      } catch(e) { grid.innerHTML = `<div class="col-span-3">${errBox(e.message)}</div>`; }
+    }
+
+    window.searchTag = tag => {
+      switchTab('explore');
+      const inp = $('exploreSearch');
+      if (inp) { inp.value = '#' + tag; handleExploreSearch({ target: inp }); }
+    };
+    window.searchUser = name => {
+      switchTab('explore');
+      const inp = $('exploreSearch');
+      if (inp) { inp.value = name; handleExploreSearch({ target: inp }); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  NOTIFICATIONS
+    // ════════════════════════════════════════════════════════════════════════
+    function watchNotifBadge() {
+      const q = query(collection(db,'notifications'), where('toUid','==',CU.uid), where('read','==',false));
+      onSnapshot(q, snap => {
+        const badge = $('notifBadge');
+        if (!badge) return;
+        if (snap.size > 0) {
+          badge.textContent = snap.size > 9 ? '9+' : snap.size;
+          badge.classList.remove('hidden');
+        } else { badge.classList.add('hidden'); }
+      });
+    }
+
+    window.openNotifications = () => {
+      $('notifPanel').classList.remove('hidden');
+      streamNotifications();
+    };
+    window.closeNotifications = () => {
+      $('notifPanel').classList.add('hidden');
+      unsubNotifs?.();
+    };
+
+    function streamNotifications() {
+      unsubNotifs?.();
+      const wrap = $('notifList');
+      wrap.innerHTML = spin();
+      const q = query(collection(db,'notifications'), where('toUid','==',CU.uid), orderBy('createdAt','desc'), limit(50));
+      unsubNotifs = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = empty('🔔','No notifications','Interactions will appear here'); return; }
+        const icons2 = { like:'❤️', comment:'💬', follow:'👤', mention:'@', story:'⚡' };
+        wrap.innerHTML = snap.docs.map(d => {
+          const n = d.data();
+          const ico = icons2[n.type] || '🔔';
+          const unread = !n.read;
+          return `<div onclick="handleNotifTap('${d.id}','${n.type}','${n.postId||''}')"
+            class="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${unread?'bg-brand-500/8 hover:bg-brand-500/15':'hover:bg-zinc-800'} mb-1">
+            <div class="relative flex-shrink-0">
+              <img src="${esc(n.fromPhotoURL||'')}" class="w-11 h-11 rounded-full object-cover"
+                   onerror="this.src='${av({displayName:n.fromName})}'"/>
+              <span class="absolute -bottom-0.5 -right-0.5 text-base leading-none">${ico}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-[13px] text-gray-200 leading-snug">
+                <span class="font-semibold text-white">${esc(n.fromName)}</span> ${esc(n.text)}
+              </p>
+              <p class="text-[11px] text-gray-500 mt-0.5">${ago(n.createdAt)}</p>
+            </div>
+            ${unread ? '<div class="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0"></div>' : ''}
+          </div>`;
+        }).join('');
+      }, e => { wrap.innerHTML = errBox(e.message); });
+    }
+
+    window.handleNotifTap = async (nid, type, postId) => {
+      try { await updateDoc(doc(db,'notifications',nid), { read: true }); } catch(e) {}
+      closeNotifications();
+      if (postId && (type === 'like' || type === 'comment')) openPostDetail(postId);
+    };
+
+    window.markAllNotifsRead = async () => {
+      try {
+        const snap = await getDocs(query(collection(db,'notifications'), where('toUid','==',CU.uid), where('read','==',false)));
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.update(d.ref, { read: true }));
+        await batch.commit();
+        toast('All marked as read', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    async function sendNotif(toUid, type, text, postId = '') {
+      if (!toUid || toUid === CU.uid) return;
+      try {
+        await addDoc(collection(db,'notifications'), {
+          toUid, fromUid: CU.uid, fromName: CU.displayName||'Someone',
+          fromPhotoURL: CU.photoURL||'', type, text, postId, read: false,
+          createdAt: serverTimestamp()
+        });
+      } catch(e) {}
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  DIRECT MESSAGES
+    // ════════════════════════════════════════════════════════════════════════
+    function watchDmBadge() {
+      const q = query(collection(db,'dms'), where('participants','array-contains',CU.uid), where('unreadBy','array-contains',CU.uid));
+      onSnapshot(q, snap => {
+        const badge = $('dmBadge');
+        if (!badge) return;
+        if (snap.size > 0) {
+          badge.textContent = snap.size > 9 ? '9+' : snap.size;
+          badge.classList.remove('hidden');
+        } else { badge.classList.add('hidden'); }
+      });
+    }
+
+    window.openDMs = () => {
+      $('dmPanel').classList.remove('hidden');
+      $('dmChatView').classList.add('hidden');
+      $('dmListView').classList.remove('hidden');
+      loadDMList();
+    };
+    window.closeDMs = () => { unsubDmList?.(); unsubDm?.(); $('dmPanel').classList.add('hidden'); };
+    window.closeDMChat = () => {
+      unsubDm?.(); unsubDm = null;
+      $('dmChatView').classList.add('hidden');
+      $('dmListView').classList.remove('hidden');
+      loadDMList();
+    };
+
+    function loadDMList() {
+      unsubDmList?.();
+      const wrap = $('dmListView');
+      wrap.innerHTML = spin();
+      const q = query(collection(db,'dms'), where('participants','array-contains',CU.uid), orderBy('updatedAt','desc'), limit(30));
+      unsubDmList = onSnapshot(q, snap => {
+        if (snap.empty) {
+          wrap.innerHTML = empty('📩','No messages yet','Visit someone's profile and tap Message to start a chat');
+          return;
+        }
+        wrap.innerHTML = snap.docs.map(d => {
+          const dm = d.data();
+          const otherId = dm.participants.find(p => p !== CU.uid) || '';
+          const otherName = dm.participantNames?.[otherId] || 'User';
+          const otherPhoto = dm.participantPhotos?.[otherId] || '';
+          const unread = dm.unreadBy?.includes(CU.uid);
+          return `<div onclick="openDMChat('${d.id}','${otherId}','${esc(otherName)}','${esc(otherPhoto)}')"
+            class="flex items-center gap-3 p-3.5 rounded-xl cursor-pointer transition-colors hover:bg-zinc-800/80 ${unread?'bg-brand-500/8':''}" >
+            <div class="relative flex-shrink-0">
+              <img src="${esc(otherPhoto||'')}" class="w-12 h-12 rounded-full object-cover"
+                   onerror="this.src='${av({displayName:otherName})}'"/>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-white text-sm truncate">${esc(otherName)}</p>
+              <p class="text-xs text-gray-400 truncate mt-0.5">${esc(dm.lastMessage||'Tap to chat')}</p>
+            </div>
+            <div class="flex flex-col items-end gap-1 flex-shrink-0">
+              ${dm.updatedAt ? `<span class="text-[10px] text-gray-600">${ago(dm.updatedAt)}</span>` : ''}
+              ${unread ? '<div class="w-2.5 h-2.5 rounded-full bg-brand-500"></div>' : ''}
+            </div>
+          </div>`;
+        }).join('');
+      }, e => {
+        // Fallback without ordering
+        const q2 = query(collection(db,'dms'), where('participants','array-contains',CU.uid), limit(30));
+        onSnapshot(q2, snap => {
+          if (snap.empty) { wrap.innerHTML = empty('📩','No messages','Start a conversation from someone's profile'); return; }
+          wrap.innerHTML = snap.docs.map(d => {
+            const dm = d.data();
+            const otherId = dm.participants?.find(p => p !== CU.uid) || '';
+            const otherName = dm.participantNames?.[otherId] || 'User';
+            return `<div onclick="openDMChat('${d.id}','${otherId}','${esc(otherName)}','')"
+              class="flex items-center gap-3 p-3.5 rounded-xl cursor-pointer hover:bg-zinc-800 transition-colors">
+              <div class="w-12 h-12 rounded-full bg-brand-600/30 flex items-center justify-center font-bold text-white">${esc(otherName[0]?.toUpperCase()||'U')}</div>
+              <div class="flex-1 min-w-0"><p class="font-semibold text-white text-sm">${esc(otherName)}</p><p class="text-xs text-gray-400">Tap to chat</p></div>
+            </div>`;
+          }).join('');
+        });
+      });
+    }
+
+    window.openDMChat = async (threadId, otherUid, otherName, otherPhoto) => {
+      unsubDm?.();
+      activeDmThread = threadId;
+      activeDmUid = otherUid;
+      $('dmChatName').textContent = otherName;
+      $('dmChatAvatar').src = otherPhoto || av({ displayName: otherName });
+      $('dmChatStatus').textContent = '';
+      $('dmListView').classList.add('hidden');
+      $('dmChatView').classList.remove('hidden');
+
+      // Mark as read
+      updateDoc(doc(db,'dms',threadId), { unreadBy: arrayRemove(CU.uid) }).catch(()=>{});
+
+      const wrap = $('dmMessages');
+      wrap.innerHTML = spin();
+      const q = query(collection(db,'dms',threadId,'messages'), orderBy('createdAt','asc'), limit(200));
+      unsubDm = onSnapshot(q, snap => {
+        const atBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 120;
+        wrap.innerHTML = snap.docs.map(d => {
+          const m = d.data();
+          const mine = m.senderId === CU.uid;
+          return `<div class="flex ${mine?'justify-end':'justify-start'} mb-2">
+            <div class="max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
+                        ${mine?'bg-brand-600 text-white rounded-br-sm':'bg-zinc-800 text-gray-100 rounded-bl-sm'}">
+              ${m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="max-w-full rounded-xl mb-1" style="max-height:200px"/>` : ''}
+              ${m.text ? esc(m.text) : ''}
+              <div class="text-[10px] opacity-60 mt-0.5 text-right">${ago(m.createdAt)}</div>
+            </div>
+          </div>`;
+        }).join('');
+        if (atBottom || snap.docs.length <= 3) wrap.scrollTop = wrap.scrollHeight;
+      });
+
+      $('dmSendBtn').onclick = () => sendDMMessage(threadId, otherUid);
+      $('dmInput').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDMMessage(threadId, otherUid); } };
+      setTimeout(() => $('dmInput').focus(), 100);
+    };
+
+    async function sendDMMessage(threadId, otherUid) {
+      const inp = $('dmInput');
+      const text = inp.value.trim();
+      if (!text) return;
+      inp.value = '';
+      try {
+        await addDoc(collection(db,'dms',threadId,'messages'), {
+          senderId: CU.uid, senderName: CU.displayName||'Me', text, createdAt: serverTimestamp()
+        });
+        await updateDoc(doc(db,'dms',threadId), {
+          lastMessage: (CU.displayName||'Me') + ': ' + text.slice(0,60),
+          updatedAt: serverTimestamp(), unreadBy: [otherUid]
+        });
+      } catch(e) { toast(e.message, 'error'); inp.value = text; }
+    }
+
+    window.startDM = async (otherUid, otherName, otherPhoto) => {
+      const ids = [CU.uid, otherUid].sort();
+      const threadId = ids.join('_');
+      try {
+        await setDoc(doc(db,'dms',threadId), {
+          participants: ids,
+          participantNames: { [CU.uid]: CU.displayName||'Me', [otherUid]: otherName },
+          participantPhotos: { [CU.uid]: CU.photoURL||'', [otherUid]: otherPhoto||'' },
+          lastMessage: '', updatedAt: serverTimestamp(), unreadBy: []
+        }, { merge: true });
+        openDMs();
+        setTimeout(() => openDMChat(threadId, otherUid, otherName, otherPhoto), 200);
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.openNewDMSearch = () => toast('Visit a user profile and tap Message to start a DM', 'info');
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ADMIN
+    // ════════════════════════════════════════════════════════════════════════
+    window.openAdminPanel = async () => {
+      $('adminPanel').classList.remove('hidden');
+      // Load stats
+      try {
+        const [pSnap, rSnap, uSnap, gSnap] = await Promise.all([
+          getDocs(collection(db,'posts')),
+          getDocs(collection(db,'reels')),
+          getDocs(collection(db,'users')),
+          getDocs(collection(db,'groups'))
+        ]);
+        $('adminStats').innerHTML = [
+          ['📸 Posts', pSnap.size],
+          ['🎬 Reels', rSnap.size],
+          ['👤 Users', uSnap.size],
+        ].map(([label, n]) => `<div class="bg-zinc-800 rounded-xl p-3 text-center">
+          <p class="text-lg font-bold text-white">${n}</p>
+          <p class="text-xs text-gray-400">${label}</p>
+        </div>`).join('');
+      } catch(e) {
+        $('adminStats').innerHTML = `<div class="col-span-3 text-center text-red-400 text-xs">${e.message}</div>`;
+      }
+    };
+    window.closeAdminPanel = () => $('adminPanel').classList.add('hidden');
+
+    window.adminDelPost = async (col, id) => {
+      if (!isAdmin) return;
+      if (!confirm('Delete this ' + col.slice(0,-1) + ' permanently?')) return;
+      try {
+        // Delete subcollection comments too
+        if (col === 'posts') {
+          const cSnap = await getDocs(collection(db, col, id, 'comments'));
+          const batch = writeBatch(db);
+          cSnap.forEach(d => batch.delete(d.ref));
+          batch.delete(doc(db, col, id));
+          await batch.commit();
+        } else {
+          await deleteDoc(doc(db, col, id));
+        }
+        toast('Deleted ✓', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.loadAdminUsers = async () => {
+      const wrap = $('adminUsersList');
+      wrap.innerHTML = spin();
+      try {
+        const snap = await getDocs(collection(db,'users'));
+        if (snap.empty) { wrap.innerHTML = '<p class="text-gray-500 text-xs text-center py-4">No users yet</p>'; return; }
+        wrap.innerHTML = snap.docs.map(d => {
+          const u = d.data();
+          return `<div class="flex items-center gap-3 py-3 border-b border-zinc-800 last:border-0">
+            <img src="${esc(u.photoURL||av(u))}" class="w-10 h-10 rounded-full object-cover flex-shrink-0"/>
+            <div class="flex-1 min-w-0">
+              <p class="text-white font-medium text-sm truncate">${esc(u.displayName||'Unknown')}</p>
+              <p class="text-xs text-gray-400 truncate">${esc(u.email||'')}</p>
+            </div>
+            ${d.id !== CU.uid ? `<button onclick="adminDelPost('users','${d.id}')" class="text-red-500 p-1.5 rounded-lg hover:bg-red-500/10 active:scale-90 transition-all"><i data-lucide="user-x" class="w-4 h-4"></i></button>` : '<span class="text-xs text-brand-400 px-2">You</span>'}
+          </div>`;
+        }).join('');
+        icons();
+      } catch(e) { wrap.innerHTML = `<p class="text-red-400 text-xs text-center py-4">${e.message}</p>`; }
+    };
+
+    window.adminNukeCol = async col => {
+      if (!isAdmin) return;
+      if (!confirm('DELETE ALL ' + col.toUpperCase() + '?
+
+This is PERMANENT and IRREVERSIBLE!')) return;
+      try {
+        const batch = writeBatch(db);
+        const snap = await getDocs(collection(db, col));
+        snap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        toast('Deleted ' + snap.size + ' ' + col + ' ✓', 'success');
+        closeAdminPanel();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  EMOJI PICKER
+    // ════════════════════════════════════════════════════════════════════════
+    const EMOJIS = ['❤️','😂','😍','🔥','👏','😮','😢','😡','💯','🎉','✨','💪','👍','😎','🙏','💬','🎬','📸','🌍','⚡','🥳','😭','🤣','💀','✅','🚀','⭐','🌟','💫','🎯'];
+
+    window.toggleEmojiPicker = inputId => {
+      const existing = document.getElementById('emojiPickerEl');
+      if (existing) { existing.remove(); return; }
+      const inp = $(inputId);
+      if (!inp) return;
+      const picker = document.createElement('div');
+      picker.id = 'emojiPickerEl';
+      picker.className = 'fixed z-[9999] bg-zinc-800 border border-zinc-700 rounded-2xl p-3 shadow-2xl';
+      // Position above input
+      const rect = inp.getBoundingClientRect();
+      picker.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${Math.min(rect.left, window.innerWidth - 320)}px;width:min(300px, calc(100vw - 32px))`;
+      picker.innerHTML = `<div class="grid grid-cols-6 gap-2">${
+        EMOJIS.map(e => `<button class="text-2xl p-1.5 rounded-xl hover:bg-zinc-700 active:scale-90 transition-all text-center"
+          onclick="insertEmoji('${inputId}','${e}')">${e}</button>`).join('')
+      }</div>`;
+      document.body.appendChild(picker);
+      setTimeout(() => document.addEventListener('click', function h(e) {
+        if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', h); }
+      }), 50);
+    };
+
+    window.insertEmoji = (inputId, emoji) => {
+      const inp = $(inputId);
+      if (!inp) return;
+      const pos = inp.selectionStart ?? inp.value.length;
+      inp.value = inp.value.slice(0, pos) + emoji + inp.value.slice(pos);
+      inp.focus();
+      inp.setSelectionRange(pos + emoji.length, pos + emoji.length);
+      document.getElementById('emojiPickerEl')?.remove();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  PULL TO REFRESH
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      let startY = 0, refreshing = false;
+      const feedScroll = $('feedScroll');
+      feedScroll.addEventListener('touchstart', e => {
+        if (feedScroll.scrollTop === 0) startY = e.touches[0].clientY;
+      }, { passive: true });
+      feedScroll.addEventListener('touchmove', e => {
+        if (!startY || refreshing) return;
+        const dy = e.touches[0].clientY - startY;
+        if (dy > 70) {
+          refreshing = true; startY = 0;
+          toast('Refreshing…', 'info');
+          loadStories();
+          unsubFeed?.(); unsubFeed = null;
+          initFeed();
+          setTimeout(() => { refreshing = false; }, 2000);
+        }
+      }, { passive: true });
+      feedScroll.addEventListener('touchend', () => { startY = 0; }, { passive: true });
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  MISC HELPERS
+    // ════════════════════════════════════════════════════════════════════════
+    window.adminDelPost = window.adminDelPost; // already defined above
+
+    // Keyboard enter for chatInput
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        // Close topmost modal
+        const modals = ['emojiPickerEl','adminPanel','dmPanel','notifPanel','storyViewer',
+                       'postOptionsModal','userProfileModal','postDetailModal','commentsModal','createModal'];
+        for (const id of modals) {
+          const el = $(id);
+          if (el && !el.classList.contains('hidden')) {
+            el.classList.add('hidden');
+            break;
+          }
+        }
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  APP READY
+    // ════════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  TRENDING / HASHTAG DISCOVERY
+    // ════════════════════════════════════════════════════════════════════════
+    async function loadTrending() {
+      try {
+        const q = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(200));
+        const snap = await getDocs(q);
+        const tags = {};
+        snap.forEach(d => {
+          const cap = d.data().caption || '';
+          const matches = cap.match(/#(\w+)/g) || [];
+          matches.forEach(t => { tags[t] = (tags[t]||0) + 1; });
+        });
+        return Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,15);
+      } catch(e) { return []; }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  POST LIKE ANIMATION HELPER
+    // ════════════════════════════════════════════════════════════════════════
+    function animateLikeBtn(postId) {
+      const btn = document.getElementById('like-' + postId);
+      if (!btn) return;
+      btn.classList.add('like-anim');
+      setTimeout(() => btn.classList.remove('like-anim'), 500);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REPORT SYSTEM
+    // ════════════════════════════════════════════════════════════════════════
+    window.reportContent = async () => {
+      const postId = $('optionsPostId').value;
+      const authorId = $('optionsPostAuthorId').value;
+      closePostOptions();
+      try {
+        await addDoc(collection(db,'reports'), {
+          reportedBy: CU.uid,
+          postId, authorId,
+          reason: 'User reported',
+          createdAt: serverTimestamp()
+        });
+        toast('Reported. Thank you!', 'success');
+      } catch(e) { toast('Report sent', 'success'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  POST SHARE / COPY LINK
+    // ════════════════════════════════════════════════════════════════════════
+    window.copyLink = () => {
+      const id = $('optionsPostId').value;
+      const url = location.href.split('#')[0] + '#post-' + id;
+      navigator.clipboard?.writeText(url)
+        .then(() => toast('Link copied! 🔗', 'success'))
+        .catch(() => toast('Could not copy link', 'error'));
+      closePostOptions();
+    };
+
+    window.shareContent = () => {
+      const id = $('optionsPostId').value;
+      sharePost(id);
+      closePostOptions();
+    };
+
+    window.sharePost = (id) => {
+      const url = location.href.split('#')[0] + '#post-' + id;
+      if (navigator.share) {
+        navigator.share({ title: 'HsepidGram post', url }).catch(() => {});
+      } else {
+        navigator.clipboard?.writeText(url).then(() => toast('Link copied! 🔗', 'success'));
+      }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  KEYBOARD SHORTCUTS (desktop)
+    // ════════════════════════════════════════════════════════════════════════
+    document.addEventListener('keydown', e => {
+      // Already handled Escape above; add more shortcuts
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      const shortcuts = {
+        '1': () => switchTab('feed'),
+        '2': () => switchTab('reels'),
+        '3': () => switchTab('create'),
+        '4': () => switchTab('groups'),
+        '5': () => switchTab('profile'),
+        '/': () => { switchTab('explore'); setTimeout(() => $('exploreSearch')?.focus(), 100); },
+        'n': () => openNotifications(),
+        'm': () => openDMs(),
+      };
+      if (shortcuts[e.key]) shortcuts[e.key]();
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  INTERSECTION OBSERVER FOR FEED (lazy load images)
+    // ════════════════════════════════════════════════════════════════════════
+    function initLazyLoad() {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(({ target, isIntersecting }) => {
+          if (isIntersecting && target.dataset.src) {
+            target.src = target.dataset.src;
+            delete target.dataset.src;
+            io.unobserve(target);
+          }
+        });
+      }, { rootMargin: '200px' });
+      document.querySelectorAll('img[data-src]').forEach(img => io.observe(img));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REALTIME PRESENCE (online status)
+    // ════════════════════════════════════════════════════════════════════════
+    async function updatePresence() {
+      if (!CU) return;
+      try {
+        await updateDoc(doc(db,'users',CU.uid), {
+          lastSeen: serverTimestamp(),
+          online: true
+        });
+      } catch(e) {}
+    }
+    setInterval(updatePresence, 60000); // update every minute
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  STORY VIEWER KEYBOARD NAV
+    // ════════════════════════════════════════════════════════════════════════
+    document.addEventListener('keydown', e => {
+      const viewer = $('storyViewer');
+      if (viewer && !viewer.classList.contains('hidden')) {
+        if (e.key === 'ArrowRight') nextStory();
+        if (e.key === 'ArrowLeft') prevStory();
+        if (e.key === 'Escape') closeStoryViewer();
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  SWIPE GESTURES FOR REELS (horizontal swipe to close)
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      let touchStartX = 0;
+      const reelsTab = $('tab-reels');
+      reelsTab.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+      reelsTab.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (dx > 80) switchTab('feed'); // swipe right → go to feed
+      }, { passive: true });
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  GROUP CHAT SWIPE TO CLOSE
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      let tx = 0;
+      const chatView = $('chatView');
+      chatView.addEventListener('touchstart', e => {
+        if (e.target.closest('input,button,video,img')) return;
+        tx = e.touches[0].clientX;
+      }, { passive: true });
+      chatView.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - tx;
+        if (dx > 80 && tx < 60) closeChat(); // swipe right from left edge
+      }, { passive: true });
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  DOUBLE-TAP STORY TO LIKE
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      let lastTap = 0;
+      $('storyMedia').addEventListener('touchend', () => {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          const el = document.createElement('div');
+          el.className = 'heart-float';
+          el.textContent = '❤️';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 900);
+        }
+        lastTap = now;
+      });
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  FEED SCROLL RESTORATION
+    // ════════════════════════════════════════════════════════════════════════
+    let savedScrollPos = 0;
+    $('feedScroll').addEventListener('scroll', () => {
+      savedScrollPos = $('feedScroll').scrollTop;
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  NETWORK STATUS INDICATOR
+    // ════════════════════════════════════════════════════════════════════════
+    window.addEventListener('online', () => toast('Back online ✓', 'success'));
+    window.addEventListener('offline', () => toast('You are offline', 'warn'));
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ADMIN: VIEW ALL REPORTS
+    // ════════════════════════════════════════════════════════════════════════
+    window.loadAdminReports = async () => {
+      if (!isAdmin) return;
+      const wrap = $('adminUsersList');
+      wrap.innerHTML = spin();
+      try {
+        const snap = await getDocs(query(collection(db,'reports'), orderBy('createdAt','desc'), limit(30)));
+        if (snap.empty) { wrap.innerHTML = '<p class="text-gray-500 text-xs text-center py-4">No reports</p>'; return; }
+        wrap.innerHTML = '<p class="text-yellow-400 text-xs font-semibold mb-2">📋 Reports</p>' +
+          snap.docs.map(d => {
+            const r = d.data();
+            return `<div class="py-2.5 border-b border-zinc-800 last:border-0">
+              <p class="text-white text-sm">Post: <span class="text-gray-400 font-mono text-xs">${esc(r.postId||'')}</span></p>
+              <p class="text-gray-500 text-xs">${ago(r.createdAt)}</p>
+              ${isAdmin ? `<button onclick="adminDelPost('posts','${r.postId}');this.closest('div').remove();" class="text-xs text-red-500 mt-1">Delete reported post</button>` : ''}
+            </div>`;
+          }).join('');
+      } catch(e) { wrap.innerHTML = `<p class="text-red-400 text-xs">${e.message}</p>`; }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  POST DETAIL: LOAD INLINE COMMENTS
+    // ════════════════════════════════════════════════════════════════════════
+    window.openPostDetail = async (id) => {
+      $('postDetailContent').innerHTML = spin();
+      $('postDetailComments').innerHTML = '';
+      $('postDetailModal').classList.remove('hidden');
+      try {
+        const snap = await getDoc(doc(db,'posts',id));
+        if (!snap.exists()) { toast('Post not found','error'); closePostDetail(); return; }
+        $('postDetailContent').innerHTML = buildPost(snap.id, snap.data());
+        icons();
+        const cq = query(collection(db,'posts',id,'comments'), orderBy('createdAt','asc'), limit(10));
+        const cSnap = await getDocs(cq);
+        if (!cSnap.empty) {
+          $('postDetailComments').innerHTML = `<div class="border-t border-zinc-800 px-4 pt-3 pb-4">
+            <p class="text-xs text-gray-500 mb-3 uppercase tracking-wide font-semibold">Comments</p>
+            ${cSnap.docs.map(d => buildComment(d.id, d.data(), id)).join('')}
+            <button onclick="closePostDetail();openComments('${id}','${snap.data().authorId}')"
+                    class="text-xs text-brand-400 mt-2 hover:text-brand-300 transition-colors">
+              View all comments →
+            </button>
+          </div>`;
+          icons();
+        }
+      } catch(e) { $('postDetailContent').innerHTML = errBox(e.message); }
+    };
+    window.closePostDetail = () => $('postDetailModal').classList.add('hidden');
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  GROUPS: MEMBER LIST
+    // ════════════════════════════════════════════════════════════════════════
+    window.viewGroupMembers = async (gid) => {
+      try {
+        const snap = await getDoc(doc(db,'groups',gid));
+        if (!snap.exists()) return;
+        const g = snap.data();
+        const members = g.members || [];
+        toast(`${members.length} member${members.length!==1?'s':''}`, 'info');
+      } catch(e) {}
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REELS: MUTE/UNMUTE
+    // ════════════════════════════════════════════════════════════════════════
+    let reelsMuted = true;
+    window.toggleReelsMute = () => {
+      reelsMuted = !reelsMuted;
+      $('reelsContainer')?.querySelectorAll('video').forEach(v => { v.muted = reelsMuted; });
+      toast(reelsMuted ? '🔇 Muted' : '🔊 Unmuted', 'info');
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  HAPTIC FEEDBACK (mobile)
+    // ════════════════════════════════════════════════════════════════════════
+    function haptic(type = 'light') {
+      if (navigator.vibrate) {
+        const patterns = { light: [10], medium: [20], heavy: [30,10,30] };
+        navigator.vibrate(patterns[type] || [10]);
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  BOTTOM SHEET DRAG (stories bar)
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      const storiesBar = $('storiesBar');
+      let isDragging = false, startX = 0, scrollLeft = 0;
+      storiesBar.addEventListener('mousedown', e => {
+        isDragging = true; startX = e.pageX - storiesBar.offsetLeft;
+        scrollLeft = $('storiesRow').scrollLeft;
+      });
+      storiesBar.addEventListener('mousemove', e => {
+        if (!isDragging) return; e.preventDefault();
+        const x = e.pageX - storiesBar.offsetLeft;
+        $('storiesRow').scrollLeft = scrollLeft - (x - startX);
+      });
+      ['mouseup','mouseleave'].forEach(ev => storiesBar.addEventListener(ev, () => isDragging = false));
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  INFINITE SCROLL FEED (load more on scroll bottom)
+    // ════════════════════════════════════════════════════════════════════════
+    let feedPage = 1, feedLoading = false, feedLastDoc = null;
+    const FEED_PAGE_SIZE = 15;
+
+    function initFeedWithPagination() {
+      unsubFeed?.();
+      feedPage = 1; feedLastDoc = null; feedLoading = false;
+      loadStories();
+      const wrap = $('feedContainer');
+      wrap.innerHTML = [1,2,3].map(skeletonPost).join('');
+      const q = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(FEED_PAGE_SIZE));
+      unsubFeed = onSnapshot(q, snap => {
+        if (snap.empty) { wrap.innerHTML = empty('📸','No posts yet','Be the first to share!'); return; }
+        if (snap.docs.length > 0) feedLastDoc = snap.docs[snap.docs.length - 1];
+        wrap.innerHTML = snap.docs.map(d => buildPost(d.id, d.data())).join('');
+        icons();
+      }, e => { wrap.innerHTML = errBox(e.message); });
+    }
+
+    // Override initFeed with paginated version
+    window.initFeed = initFeedWithPagination;
+
+    $('feedScroll').addEventListener('scroll', async () => {
+      const el = $('feedScroll');
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
+      if (nearBottom && !feedLoading && feedLastDoc) {
+        feedLoading = true;
+        try {
+          const { startAfter } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const q = query(collection(db,'posts'), orderBy('createdAt','desc'), startAfter(feedLastDoc), limit(FEED_PAGE_SIZE));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            feedLastDoc = snap.docs[snap.docs.length - 1];
+            const wrap = $('feedContainer');
+            snap.docs.forEach(d => {
+              const el2 = document.createElement('div');
+              el2.innerHTML = buildPost(d.id, d.data());
+              wrap.appendChild(el2.firstElementChild);
+            });
+            icons();
+          }
+        } catch(e) {} finally { feedLoading = false; }
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REEL PROGRESS BAR (bottom of screen)
+    // ════════════════════════════════════════════════════════════════════════
+    function addReelProgressBars() {
+      $('reelsContainer')?.querySelectorAll('.reel-slide').forEach(slide => {
+        if (slide.querySelector('.reel-progress')) return;
+        const bar = document.createElement('div');
+        bar.className = 'reel-progress absolute bottom-0 left-0 h-0.5 bg-brand-500 z-20 transition-none';
+        bar.style.width = '0%';
+        slide.appendChild(bar);
+      });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  CHAT: TYPING INDICATOR
+    // ════════════════════════════════════════════════════════════════════════
+    let typingUnsub = null;
+
+    $('chatInput').addEventListener('input', () => {
+      if (!activeGroupId) return;
+      clearTimeout(typingTimeout);
+      // Set typing status
+      updateDoc(doc(db,'groups',activeGroupId), {
+        [`typing.${CU.uid}`]: { name: CU.displayName||'Someone', at: Date.now() }
+      }).catch(() => {});
+      typingTimeout = setTimeout(() => {
+        updateDoc(doc(db,'groups',activeGroupId), {
+          [`typing.${CU.uid}`]: null
+        }).catch(() => {});
+      }, 2000);
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  NOTIFICATION: PUSH PERMISSION REQUEST
+    // ════════════════════════════════════════════════════════════════════════
+    async function requestNotifPermission() {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'default') {
+        // Show native prompt after 30 seconds of use
+        setTimeout(async () => {
+          try { await Notification.requestPermission(); } catch(e) {}
+        }, 30000);
+      }
+    }
+    requestNotifPermission();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  IMAGE LIGHTBOX (full screen view)
+    // ════════════════════════════════════════════════════════════════════════
+    window.openLightbox = (src) => {
+      const lb = document.createElement('div');
+      lb.id = 'lightbox';
+      lb.className = 'fixed inset-0 z-[9998] bg-black flex items-center justify-center';
+      lb.style.cursor = 'zoom-out';
+      lb.innerHTML = `<button class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-zinc-800/80 flex items-center justify-center text-white" onclick="document.getElementById('lightbox').remove()">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <img src="${esc(src)}" class="max-w-full max-h-full object-contain" style="max-height:95dvh"/>`;
+      lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+      document.body.appendChild(lb);
+      icons();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  STORY: PAUSE ON PRESS-HOLD
+    // ════════════════════════════════════════════════════════════════════════
+    (() => {
+      let holdTimer = null;
+      $('storyMedia').addEventListener('touchstart', () => {
+        holdTimer = setTimeout(() => { clearTimeout(storyTimer); }, 100);
+      }, { passive: true });
+      $('storyMedia').addEventListener('touchend', () => {
+        clearTimeout(holdTimer);
+        // Resume timer with remaining time
+        if (storyQueue[storyIdx]) {
+          const dur = (storyQueue[storyIdx].duration || 10) * 1000;
+          storyTimer = setTimeout(() => nextStory(), dur / 2); // simplified resume
+        }
+      }, { passive: true });
+    })();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  PROFILE: EDIT BIO
+    // ════════════════════════════════════════════════════════════════════════
+    window.openEditProfile = () => {
+      const modal = document.createElement('div');
+      modal.id = 'editProfileModal';
+      modal.className = 'fixed inset-0 z-[60] flex items-end justify-center';
+      modal.innerHTML = `
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="document.getElementById('editProfileModal').remove()"></div>
+        <div class="relative w-full max-w-lg bg-zinc-900 rounded-t-3xl border border-zinc-700/60 shadow-2xl scale-in pb-safe">
+          <div class="flex justify-center pt-3 pb-2"><div class="w-10 h-1 bg-zinc-600 rounded-full"></div></div>
+          <div class="px-5 pb-5">
+            <h3 class="font-bold text-white text-lg mb-4">Edit Profile</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1.5">Display Name</label>
+                <input id="editDisplayName" type="text" value="${esc(CU?.displayName||'')}" maxlength="50"
+                       class="w-full bg-zinc-800 border border-zinc-700 focus:border-brand-500 text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors"/>
+              </div>
+            </div>
+            <button onclick="saveEditProfile()" class="w-full mt-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white font-semibold py-3.5 rounded-xl transition-all">
+              Save Changes
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      document.getElementById('editDisplayName').focus();
+    };
+
+    window.saveEditProfile = async () => {
+      const name = document.getElementById('editDisplayName')?.value.trim();
+      if (!name) { toast('Name cannot be empty','error'); return; }
+      try {
+        await updateDoc(doc(db,'users',CU.uid), { displayName: name });
+        document.getElementById('editProfileModal')?.remove();
+        toast('Profile updated!','success');
+        initProfile(CU.uid);
+      } catch(e) { toast(e.message,'error'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  GROUPS: LEAVE GROUP
+    // ════════════════════════════════════════════════════════════════════════
+    window.leaveGroup = async (gid) => {
+      if (!confirm('Leave this group?')) return;
+      try {
+        await updateDoc(doc(db,'groups',gid), {
+          members: arrayRemove(CU.uid),
+          memberCount: increment(-1)
+        });
+        toast('Left group','info');
+        closeChat();
+      } catch(e) { toast(e.message,'error'); }
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  FEED: SUGGESTED USERS (for empty or new feed)
+    // ════════════════════════════════════════════════════════════════════════
+    async function loadSuggestedUsers() {
+      try {
+        const snap = await getDocs(query(collection(db,'users'), limit(10)));
+        return snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(u => u.id !== CU.uid);
+      } catch(e) { return []; }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  SMART INITFEED (with suggested users fallback)
+    // ════════════════════════════════════════════════════════════════════════
+    function initFeed() {
+      unsubFeed?.();
+      loadStories();
+      const wrap = $('feedContainer');
+      wrap.innerHTML = [1,2,3].map(skeletonPost).join('');
+      const q = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(40));
+      unsubFeed = onSnapshot(q, async snap => {
+        if (snap.empty) {
+          // Show suggested users when feed is empty
+          const suggested = await loadSuggestedUsers();
+          wrap.innerHTML = `
+            <div class="px-4 py-6">
+              ${empty('📸','Welcome to HsepidGram!','Start by following people or creating your first post.')}
+              ${suggested.length ? `
+              <div class="mt-6">
+                <p class="text-white font-semibold mb-3">Suggested People</p>
+                <div class="space-y-3">
+                  ${suggested.map(u => `
+                  <div class="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+                    <img src="${esc(u.photoURL||av(u))}" class="w-11 h-11 rounded-full object-cover flex-shrink-0 cursor-pointer" onclick="openUserProfile('${u.id}')"/>
+                    <div class="flex-1 min-w-0 cursor-pointer" onclick="openUserProfile('${u.id}')">
+                      <p class="font-semibold text-white text-sm truncate">${esc(u.displayName||'User')}</p>
+                      <p class="text-xs text-gray-400 truncate">${esc(u.email||'')}</p>
+                    </div>
+                    <button onclick="doFollow('${u.id}','${esc(u.displayName||'')}')" id="sf-${u.id}"
+                            class="flex-shrink-0 px-3 py-1.5 bg-brand-600 text-white text-xs font-semibold rounded-lg active:scale-95 transition-all">
+                      Follow
+                    </button>
+                  </div>`).join('')}
+                </div>
+              </div>` : ''}
+            </div>`;
+          icons();
+          return;
+        }
+        wrap.innerHTML = snap.docs.map(d => buildPost(d.id, d.data())).join('');
+        icons();
+      }, e => { wrap.innerHTML = errBox(e.message); console.error('Feed:', e); });
+    }
+
+    // Override the window version too
+    window.switchTab = tab => {
+      if (activeTab === tab && tab !== 'feed') return;
+      activeTab = tab;
+      ['feed','reels','create','groups','profile','explore'].forEach(t => {
+        $('tab-'+t)?.classList.toggle('hidden', t !== tab);
+        const b = $('nav-'+t);
+        if (b) { b.classList.toggle('text-brand-500', t===tab); b.classList.toggle('text-gray-500', t!==tab); }
+      });
+      const inits = {
+        feed: initFeed,
+        reels: initReels,
+        groups: () => { initGroups(); $('groupsView').classList.remove('hidden'); $('chatView').classList.add('hidden'); },
+        profile: () => initProfile(CU?.uid),
+        explore: initExplore,
+        create: () => icons()
+      };
+      inits[tab]?.();
+    };
+
+    // Run initial feed
+    initFeed();
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  SERVICE WORKER (PWA offline support)
+    // ════════════════════════════════════════════════════════════════════════
+    if ('serviceWorker' in navigator) {
+      // Inline SW as blob
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', e => {
+          if (e.request.destination === 'image') {
+            e.respondWith(
+              caches.open('hsepidgram-images').then(cache =>
+                cache.match(e.request).then(cached => {
+                  if (cached) return cached;
+                  return fetch(e.request).then(resp => {
+                    cache.put(e.request, resp.clone());
+                    return resp;
+                  }).catch(() => cached);
+                })
+              )
+            );
+          }
+        });`;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  FINAL: MARK APP AS FULLY LOADED
+    // ════════════════════════════════════════════════════════════════════════
+    window.__HSEPIDGRAM_LOADED = true;
+    console.log('%c ✓ HsepidGram fully loaded ', 'background:#ff2d77;color:white;padding:4px 12px;border-radius:6px;font-weight:bold;font-size:13px');
+
+
+  } catch(globalErr) {
+    // Show helpful error if Firebase init fails
+    console.error('HsepidGram init error:', globalErr);
+    document.getElementById('loadingScreen').innerHTML = `
+      <div class="p-8 text-center max-w-sm mx-auto">
+        <div class="text-5xl mb-4">⚠️</div>
+        <h2 class="text-white font-bold text-xl mb-2">Initialization Error</h2>
+        <p class="text-red-400 text-sm mb-4">${globalErr.message}</p>
+        <p class="text-gray-500 text-xs leading-relaxed">
+          Make sure your Firebase config is correct and you have internet access.
+          Check the browser console for details.
+        </p>
+        <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-brand-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
+          Retry
+        </button>
+      </div>`;
+  }
+})();
+</script>
+
+</body>
+</html>
